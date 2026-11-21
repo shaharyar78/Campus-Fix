@@ -18,6 +18,7 @@ export function findPotentialDuplicates(
     description: string;
     category: string;
     building_id?: string | null;
+    building_label?: string | null;
     floor?: string | null;
     room?: string | null;
   },
@@ -44,8 +45,14 @@ export function findPotentialDuplicates(
       score += 2;
     }
 
-    // Check building match
-    if (draft.building_id && report.building_id === draft.building_id) {
+    // Match a selected building ID or a free-text building name while a campus directory is unavailable.
+    const draftBuildingLabel = draft.building_label?.trim().toLowerCase();
+    const reportBuildingLabel = report.building_label?.trim().toLowerCase();
+    const sameBuilding = Boolean(
+      (draft.building_id && report.building_id === draft.building_id) ||
+      (draftBuildingLabel && reportBuildingLabel && draftBuildingLabel === reportBuildingLabel)
+    );
+    if (sameBuilding) {
       score += 3;
 
       // Check floor match

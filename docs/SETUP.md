@@ -37,7 +37,7 @@ Use the local `.env.local` file for development. Never commit real credentials.
 
 For an existing Supabase project, back it up and apply only migrations that have not already run there. Do not rerun the schema or seed scripts blindly against live data.
 
-The current college migration adds G. L. Bajaj Institute of Technology & Management and enables signup for active colleges. Its configured email domains are `glbitm.ac.in` and `glbitm.org`; confirm these with campus IT before launch. GL Bajaj buildings are not seeded until actual campus locations are confirmed, so its campus admin should configure them in CampusFix.
+The current college migration adds G. L. Bajaj Institute of Technology & Management and enables signup for active colleges. Its configured email domains are `glbitm.ac.in` and `glbitm.org`; confirm these with campus IT before launch. GL Bajaj buildings are not seeded until actual campus locations are confirmed. Until its campus admin configures the directory, students can enter the building name on a report.
 
 ## Authentication
 
@@ -85,4 +85,4 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY
 ```
 
-The service-role key must remain server-only; never use a `NEXT_PUBLIC_` name for it. Apply database migrations, RLS policies, and storage policies before deploying app code that depends on them. Verify campus email domains and configure real campus buildings before opening registration. Do not run `supabase/seed.sql` in production unless its campus records match the intended production data.
+The service-role key must remain server-only; never use a `NEXT_PUBLIC_` name for it. Apply database migrations, RLS policies, and storage policies before deploying app code that depends on them. Verify campus email domains before opening registration, and have campus admins configure accurate building directories. Do not run `supabase/seed.sql` in production unless its campus records match the intended production data.

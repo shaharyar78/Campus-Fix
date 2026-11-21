@@ -58,4 +58,27 @@ describe('Deduplication', () => {
     expect(result.isDuplicate).toBe(false);
     expect(result.matches.length).toBe(0);
   });
+
+  it('detects duplicate reports at the same free-text building location', () => {
+    const reportWithoutBuildingId: Report = {
+      ...existingReports[0],
+      id: 'r-2',
+      building_id: null,
+      building_label: 'Academic Block',
+    };
+    const result = findPotentialDuplicates(
+      {
+        title: 'Leaking water tap in washroom',
+        description: 'Water leaking on floor',
+        category: 'plumbing',
+        building_label: ' academic block ',
+        floor: '2nd Floor',
+        room: 'Washroom 2',
+      },
+      [reportWithoutBuildingId]
+    );
+
+    expect(result.isDuplicate).toBe(true);
+    expect(result.matches[0].id).toBe('r-2');
+  });
 });

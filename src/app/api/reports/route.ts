@@ -43,13 +43,20 @@ export async function POST(request: Request) {
     title: typeof body.title === 'string' ? body.title : undefined,
     description: typeof body.description === 'string' ? body.description : undefined,
     category: typeof body.category === 'string' ? body.category : undefined,
-    building_id: typeof body.building_id === 'string' ? body.building_id : undefined,
+    building_id: typeof body.building_id === 'string' && body.building_id.trim() ? body.building_id.trim() : null,
+    building_label: typeof body.building_label === 'string' ? body.building_label : null,
   });
   if (!validation.isValid) return apiError('VALIDATION_ERROR', Object.values(validation.errors).join(', '), 400, { field_errors: validation.errors });
   if (typeof body.title !== 'string' || typeof body.description !== 'string' || typeof body.category !== 'string') return apiError('VALIDATION_ERROR', 'Report fields are invalid', 400);
   const category = body.category as ReportCategory;
   const title = body.title;
   const description = body.description;
+  const buildingId = typeof body.building_id === 'string' && body.building_id.trim()
+    ? body.building_id.trim()
+    : null;
+  const buildingLabel = typeof body.building_label === 'string' && body.building_label.trim()
+    ? body.building_label.trim()
+    : null;
 
   const supabase = await createClient();
   const targetCollegeId = profile.role === 'super_admin' && typeof body.college_id === 'string'
@@ -66,7 +73,7 @@ export async function POST(request: Request) {
   if (profile.role !== 'super_admin' && profile.college_id !== college.id) return apiError('FORBIDDEN', 'You cannot create reports for another college', 403);
   const { data: existingReports, error: duplicateQueryError } = await supabase
     .from('reports')
-    .select('id, title, description, category, building_id, floor, room, tracking_id, college_id, submitter_id, status, upvote_count, photo_paths, created_at, updated_at')
+    .select('id, title, description, category, building_id, building_label, floor, room, tracking_id, college_id, submitter_id, status, upvote_count, photo_paths, created_at, updated_at')
     .eq('college_id', college.id)
     .in('status', ['submitted', 'under_review', 'assigned', 'in_progress']);
   if (duplicateQueryError) return apiError('DATABASE_ERROR', 'Could not check existing reports', 500);
@@ -76,7 +83,8 @@ export async function POST(request: Request) {
       title,
       description,
       category,
-      building_id: typeof body.building_id === 'string' ? body.building_id : null,
+      building_id: buildingId,
+      building_label: buildingLabel,
       floor: typeof body.floor === 'string' ? body.floor : null,
       room: typeof body.room === 'string' ? body.room : null,
     }, (existingReports || []) as unknown as Report[]);
@@ -91,8 +99,8 @@ export async function POST(request: Request) {
   const { data, error } = await supabase.from('reports').insert([{
     college_id: college.id,
     submitter_id: user.id,
-    building_id: typeof body.building_id === 'string' ? body.building_id : null,
-    building_label: typeof body.building_label === 'string' ? body.building_label : null,
+    building_id: buildingId,
+    building_label: buildingLabel,
     tracking_id: generateTrackingId(college.slug),
     title: title.trim(),
     description: description.trim(),

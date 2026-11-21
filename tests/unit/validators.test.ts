@@ -25,6 +25,7 @@ describe('Validators', () => {
         title: 'Broken tube light in Lab 201',
         description: 'The tube light is constantly flickering and humming loudly.',
         category: 'electrical',
+        building_label: 'Academic Block',
       });
       expect(result.isValid).toBe(true);
       expect(Object.keys(result.errors).length).toBe(0);
@@ -39,6 +40,16 @@ describe('Validators', () => {
       expect(result.isValid).toBe(false);
       expect(result.errors.title).toBeDefined();
       expect(result.errors.description).toBeDefined();
+    });
+
+    it('requires a building selection or a building name', () => {
+      const result = validateReportInput({
+        title: 'Broken tube light in Lab 201',
+        description: 'The tube light is constantly flickering and humming loudly.',
+        category: 'electrical',
+      });
+      expect(result.isValid).toBe(false);
+      expect(result.errors.building_label).toBeDefined();
     });
 
     it('rejects invalid category', () => {

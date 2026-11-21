@@ -13,9 +13,18 @@ export function validateReportInput(data: {
   title?: string;
   description?: string;
   category?: string;
-  building_id?: string;
+  building_id?: string | null;
+  building_label?: string | null;
 }): ValidationResult {
   const errors: Record<string, string> = {};
+
+  const buildingId = data.building_id?.trim();
+  const buildingLabel = data.building_label?.trim();
+  if (!buildingId && !buildingLabel) {
+    errors.building_label = 'Enter a building name or select a building.';
+  } else if (buildingLabel && buildingLabel.length > 120) {
+    errors.building_label = 'Building name cannot exceed 120 characters.';
+  }
 
   if (!data.title || data.title.trim().length < 3) {
     errors.title = 'Title must be at least 3 characters long.';

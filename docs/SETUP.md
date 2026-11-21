@@ -1,0 +1,88 @@
+# Setup
+
+## Prerequisites
+
+- Node.js 20 or newer
+- npm
+- A Supabase project
+- Optional: Playwright browsers for end-to-end tests
+
+## Installation
+
+```bash
+npm ci
+cp .env.example .env.local
+```
+
+## Environment Variables
+
+Configure at least:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+Use the local `.env.local` file for development. Never commit real credentials.
+
+## Supabase Setup
+
+1. Create or open a Supabase project.
+2. Run `supabase/schema.sql`.
+3. Run migrations from `supabase/migrations` in order.
+4. Apply `supabase/policies.sql`.
+5. Configure storage using `supabase/storage.sql`.
+6. Optionally run `supabase/seed.sql` in development.
+
+For an existing Supabase project, back it up and apply only migrations that have not already run there. Do not rerun the schema or seed scripts blindly against live data.
+
+The current college migration adds G. L. Bajaj Institute of Technology & Management and enables signup for active colleges. Its configured email domains are `glbitm.ac.in` and `glbitm.org`; confirm these with campus IT before launch. GL Bajaj buildings are not seeded until actual campus locations are confirmed, so its campus admin should configure them in CampusFix.
+
+## Authentication
+
+Set the production site URL to your deployed origin in Supabase Auth. Add these production redirect URLs to the allow list:
+
+```text
+https://YOUR_DOMAIN/auth/callback
+https://YOUR_DOMAIN/auth/callback?next=/auth/update-password
+```
+
+Keep `http://localhost:3000/auth/callback` in the allow list only if local development still needs it.
+
+## Development
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+## Tests
+
+```bash
+npm test
+npm run test:e2e
+npm run lint
+npm run build
+```
+
+Install Playwright dependencies if end-to-end tests do not start:
+
+```bash
+npx playwright install
+```
+
+## Production
+
+Deploy from the repository root on a Next.js-compatible host. Use `npm ci` for installation, `npm run build` for the build, and `npm run start` when the host expects a start command. The GitHub Actions workflow runs lint, typecheck, unit tests, a production build, and browser smoke tests on pushes and pull requests to `main`.
+
+Set these environment variables in the hosting provider's server environment:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY
+```
+
+The service-role key must remain server-only; never use a `NEXT_PUBLIC_` name for it. Apply database migrations, RLS policies, and storage policies before deploying app code that depends on them. Verify campus email domains and configure real campus buildings before opening registration. Do not run `supabase/seed.sql` in production unless its campus records match the intended production data.

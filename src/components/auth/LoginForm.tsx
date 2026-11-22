@@ -25,20 +25,29 @@ export const LoginForm: React.FC = () => {
     setErrors({});
     setIsLoading(true);
     try {
-      let email = formData.email.trim();
+      const email = formData.email.trim();
+      let userId: string | null = null;
       if (!email.includes('@')) {
-        const response = await fetch('/api/auth/resolve-username', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: email }) });
+        const response = await fetch('/api/auth/resolve-username', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: email, password: formData.password }),
+        });
         const resolved = await response.json();
-        if (!response.ok || typeof resolved.email !== 'string') { setGeneralError(resolved.error || 'Username or password is incorrect.'); return; }
-        email = resolved.email;
+        if (!response.ok) { setGeneralError(resolved.error || 'Username or password is incorrect.'); return; }
+        const { data, error } = await supabase.auth.getUser();
+        if (error || !data.user) { setGeneralError('Username or password is incorrect.'); return; }
+        userId = data.user.id;
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password: formData.password });
+        if (error) { setGeneralError(error.message); return; }
+        if (!data.user) { setGeneralError('Sign-in did not return an account. Please retry.'); return; }
+        userId = data.user.id;
       }
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password: formData.password });
-      if (error) { setGeneralError(error.message); return; }
-      if (!data.user) { setGeneralError('Sign-in did not return an account. Please retry.'); return; }
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role, approval_status')
-        .eq('id', data.user.id)
+        .eq('id', userId)
         .single();
       if (profileError) { setGeneralError('Your account profile could not be loaded. Contact your campus administrator.'); return; }
       if (profile.approval_status === 'pending') {

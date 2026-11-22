@@ -1,0 +1,1 @@
+-- No-op migration used to align Supabase migration history.

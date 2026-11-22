@@ -1,5 +1,6 @@
 -- =============================================================================
--- CampusFix: Full initial schema (consolidated)
+-- CampusFix: Squashed baseline for fresh databases.
+-- Subsequent historical migration versions are retained as no-ops for history alignment.
 -- =============================================================================
 
 create extension if not exists "pgcrypto";

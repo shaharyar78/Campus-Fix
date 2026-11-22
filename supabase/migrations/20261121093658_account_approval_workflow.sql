@@ -1,0 +1,1 @@
+-- Historical migration consolidated into 20261121074607_fix_campusfix_database.sql.

@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -16,13 +17,13 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         {label && (
           <label
             htmlFor={textareaId}
-            className="block text-sm font-medium text-slate-700 mb-1.5"
+            className="mb-1.5 block text-sm font-medium text-neutral-800"
           >
             {label}
-            {props.required && <span className="text-rose-500 ml-1">*</span>}
+            {props.required && <span className="ml-1 text-rose-600">*</span>}
           </label>
         )}
-        <div className="relative rounded-lg shadow-sm">
+        <div className="relative">
           <textarea
             id={textareaId}
             ref={ref}
@@ -32,29 +33,23 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
               error ? `${textareaId}-error` : helperText ? `${textareaId}-helper` : undefined
             }
             className={cn(
-              'block w-full rounded-xl border bg-white/55 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:border-slate-200 resize-y',
+              'block w-full resize-y rounded-lg border bg-white px-3.5 py-2.5 text-sm text-neutral-950 placeholder:text-neutral-400 transition-colors duration-150 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15 disabled:bg-neutral-100 disabled:text-neutral-500 disabled:border-neutral-200',
               error
-                ? 'border-rose-400 text-rose-900 focus:border-rose-500 focus:ring-rose-500'
-                : 'border-white/80',
+                ? 'border-rose-400 text-rose-900 focus:border-rose-500 focus:ring-rose-500/15'
+                : 'border-neutral-200 hover:border-neutral-300',
               className
             )}
             {...props}
           />
         </div>
         {error && (
-          <p id={`${textareaId}-error`} className="mt-1 text-xs text-rose-600 flex items-center gap-1">
-            <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
+          <p id={`${textareaId}-error`} className="mt-1.5 flex items-center gap-1.5 text-xs text-rose-600" role="alert">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             <span>{error}</span>
           </p>
         )}
         {!error && helperText && (
-          <p id={`${textareaId}-helper`} className="mt-1 text-xs text-slate-500">
+          <p id={`${textareaId}-helper`} className="mt-1.5 text-xs text-neutral-500">
             {helperText}
           </p>
         )}

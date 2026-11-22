@@ -1,13 +1,87 @@
 import { createServerClient } from '@supabase/ssr';
 import type { CookieOptions } from '@supabase/ssr';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
+import {
+  isSupabaseConfigured,
+  getSupabaseUrl,
+  getSupabaseAnonKey,
+  getSupabaseServiceRoleKey,
+} from './config';
+import {
+  createMockClientWithAdapter,
+  type MockAuthAdapter,
+  type MockQueryPayload,
+} from './mockClient';
+import {
+  extractMockBearerToken,
+  MOCK_SESSION_COOKIE,
+  signMockSessionToken,
+  verifyMockSessionToken,
+} from './mockCookies';
+import {
+  authenticateMockUser,
+  executeMockQuery,
+  getMockAuthUser,
+} from './mockStore';
 
-export async function createClient() {
+function createMockServerClient(mockUserId?: string | null, rawToken?: string | null) {
+  const executor = async (payload: MockQueryPayload) => executeMockQuery(payload);
+
+  const getUserFromStore = () => {
+    if (!mockUserId) return null;
+    return getMockAuthUser(mockUserId);
+  };
+
+  const auth: MockAuthAdapter = {
+    async getUser() {
+      return { data: { user: getUserFromStore() }, error: null };
+    },
+    async getSession() {
+      const user = getUserFromStore();
+      const accessToken = user ? (rawToken || signMockSessionToken(user.id)) : '';
+      return {
+        data: { session: user ? { access_token: accessToken, user } : null },
+        error: null,
+      };
+    },
+    async signInWithPassword({ email, password }) {
+      const { user, error } = authenticateMockUser(email, password);
+      if (error || !user) {
+        return { data: { user: null, session: null }, error: { message: 'Invalid login credentials' } };
+      }
+      const token = signMockSessionToken(user.id);
+      return { data: { user, session: { access_token: token, user } }, error: null };
+    },
+    async signUp() {
+      return { data: { user: null, session: null }, error: { message: 'Use browser client for signup' } };
+    },
+    async signOut() {
+      return { error: null };
+    },
+    async updateUser() {
+      return { data: { user: getUserFromStore() }, error: null };
+    },
+    async resetPasswordForEmail() {
+      return { data: {}, error: null };
+    },
+    async exchangeCodeForSession() {
+      return { data: { session: null }, error: null };
+    },
+    onAuthStateChange() {
+      return { data: { subscription: { unsubscribe: () => {} } } };
+    },
+  };
+
+  return createMockClientWithAdapter(executor, auth);
+}
+
+async function createRealServerClient() {
   const cookieStore = await cookies();
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+  const headerStore = await headers();
+  const isHttps = headerStore.get('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase() === 'https';
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseAnonKey = getSupabaseAnonKey();
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -17,7 +91,10 @@ export async function createClient() {
       setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
+            cookieStore.set(name, value, {
+              ...options,
+              ...(isHttps ? { sameSite: 'none' as const, secure: true } : {}),
+            })
           );
         } catch {
           // Can happen in Server Components
@@ -27,10 +104,29 @@ export async function createClient() {
   });
 }
 
-export function createServiceClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export async function createClient(request?: Request): Promise<ReturnType<typeof createRealServerClient>> {
+  if (!isSupabaseConfigured()) {
+    const cookieStore = await cookies();
+    const rawToken = cookieStore.get(MOCK_SESSION_COOKIE)?.value || extractMockBearerToken(request);
+    const mockUserId = verifyMockSessionToken(rawToken);
+    return createMockServerClient(mockUserId, rawToken) as unknown as Awaited<ReturnType<typeof createRealServerClient>>;
+  }
+
+  return createRealServerClient();
+}
+
+function createRealServiceClient() {
+  const supabaseUrl = getSupabaseUrl();
+  const serviceKey = getSupabaseServiceRoleKey();
   if (!serviceKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for server-side account lookup.');
 
   return createSupabaseClient(supabaseUrl, serviceKey);
+}
+
+export function createServiceClient(): ReturnType<typeof createRealServiceClient> {
+  if (!isSupabaseConfigured()) {
+    return createMockServerClient(null, null) as unknown as ReturnType<typeof createRealServiceClient>;
+  }
+
+  return createRealServiceClient();
 }

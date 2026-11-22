@@ -167,12 +167,17 @@ begin
 
   if new.raw_user_meta_data ->> 'role' = 'admin' then
     requested_role := 'admin';
+  else
+    requested_role := 'student';
   end if;
 
-  insert into public.profiles (id, college_id, role, approval_status, approval_requested_role, email, full_name)
+  insert into public.profiles (id, college_id, role, approval_status, approval_requested_role, email, full_name, approved_at)
   values (
-    new.id, campus_id, 'student'::public.user_role, 'pending', requested_role,
-    new.email, coalesce(new.raw_user_meta_data ->> 'full_name', split_part(new.email, '@', 1))
+    new.id, campus_id, 'student'::public.user_role,
+    case when requested_role = 'student' then 'approved' else 'pending' end,
+    requested_role,
+    new.email, coalesce(new.raw_user_meta_data ->> 'full_name', split_part(new.email, '@', 1)),
+    case when requested_role = 'student' then now() else null end
   )
   on conflict (id) do update
   set email = excluded.email, full_name = coalesce(public.profiles.full_name, excluded.full_name);

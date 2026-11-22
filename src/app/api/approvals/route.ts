@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { apiError, getAuthContext } from '@/lib/serverAuth';
 import { createClient } from '@/lib/supabase/server';
 
-export async function GET() {
-  const { user, profile } = await getAuthContext();
+export async function GET(request: Request) {
+  const { user, profile } = await getAuthContext(request);
   if (!user || !profile) {
     return apiError('UNAUTHORIZED', 'Authentication required', 401);
   }
@@ -12,7 +12,7 @@ export async function GET() {
     return apiError('FORBIDDEN', 'Approval access is restricted', 403);
   }
 
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   let query = supabase
     .from('profiles')
     .select('id, college_id, college:colleges(name), role, full_name, email, approval_status, approval_requested_role, approved_by, approved_at, created_at')
@@ -55,7 +55,7 @@ export async function PATCH(request: Request) {
     return apiError('VALIDATION_ERROR', 'profile_id and a valid action are required', 400);
   }
 
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   const { data: target, error: targetError } = await supabase
     .from('profiles')
     .select('id, college_id, role, approval_status, approval_requested_role')

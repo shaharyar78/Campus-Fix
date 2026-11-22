@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from './supabase/server';
+import { isSupabaseConfigured } from './supabase/config';
+import { isTrustedSameOriginRequest } from './supabase/mockCookies';
 import { UserProfile } from '@/types';
 
 export interface AuthContext {
@@ -29,9 +31,11 @@ export function apiError(
 }
 
 export async function getAuthContext(request?: Request): Promise<AuthContext> {
-  void request;
+  if (request && !isSupabaseConfigured() && !isTrustedSameOriginRequest(request)) {
+    return { user: null, profile: null };
+  }
   try {
-    const supabase = await createClient();
+    const supabase = await createClient(request);
     const {
       data: { user },
       error: userError,

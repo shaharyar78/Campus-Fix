@@ -23,11 +23,11 @@ function validateCollege(body: Record<string, unknown>) {
   return { input, error: null };
 }
 
-export async function GET() {
-  const { user } = await getAuthContext();
+export async function GET(request: Request) {
+  const { user } = await getAuthContext(request);
   if (!user) return apiError('UNAUTHORIZED', 'Authentication required', 401);
 
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   const { data, error } = await supabase.from('colleges').select('*').eq('is_active', true).order('name');
   if (error) return apiError('DATABASE_ERROR', 'Could not load colleges', 500);
   return NextResponse.json({ data: data || [] });
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   const { input, error: validationError } = validateCollege(payload);
   if (validationError) return apiError('VALIDATION_ERROR', validationError, 400);
 
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   const { data, error } = await supabase.from('colleges').insert({
     name: input.name,
     slug: input.slug,
@@ -70,7 +70,7 @@ export async function PATCH(request: Request) {
   const { input, error: validationError } = validateCollege(payload);
   if (validationError) return apiError('VALIDATION_ERROR', validationError, 400);
 
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   const { data, error } = await supabase.from('colleges').update({
     name: input.name,
     slug: input.slug,

@@ -6,7 +6,11 @@ import { Button } from '@/components/ui/Button';
 import { validateBuildingInput } from '@/lib/validators';
 
 interface BuildingFormProps {
-  onSubmit: (data: { name: string; code?: string; floor_count: number }) => Promise<{ error?: string | null } | undefined>;
+  onSubmit: (data: {
+    name: string;
+    code?: string;
+    floor_count: number;
+  }) => Promise<{ error?: string | null } | undefined>;
   onCancel?: () => void;
   isLoading?: boolean;
   initialValue?: { name: string; code?: string | null; floor_count?: number };
@@ -34,8 +38,16 @@ export const BuildingForm: React.FC<BuildingFormProps> = ({
     setGeneralError(null);
 
     const validation = validateBuildingInput(formData);
-    if (!validation.isValid) {
-      setErrors(validation.errors);
+    const nextErrors = { ...validation.errors };
+    if (
+      !Number.isInteger(formData.floor_count) ||
+      formData.floor_count < 0 ||
+      formData.floor_count > 25
+    ) {
+      nextErrors.floor_count = 'Floor count must be a whole number between 0 and 25.';
+    }
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
       return;
     }
 
@@ -43,7 +55,7 @@ export const BuildingForm: React.FC<BuildingFormProps> = ({
     const res = await onSubmit(formData);
     if (res?.error) {
       setGeneralError(res.error);
-    } else {
+    } else if (!initialValue) {
       setFormData({ name: '', code: '', floor_count: 5 });
     }
   };
@@ -51,7 +63,7 @@ export const BuildingForm: React.FC<BuildingFormProps> = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {generalError && (
-        <div className="rounded-lg bg-rose-50 border border-rose-200 p-3 text-xs text-rose-700">
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700" role="alert">
           {generalError}
         </div>
       )}
@@ -74,9 +86,24 @@ export const BuildingForm: React.FC<BuildingFormProps> = ({
         helperText="Used on tickets and room identifiers."
       />
 
-      <Input label="Total Floors" type="number" min={0} max={25} value={formData.floor_count} onChange={(e) => setFormData({ ...formData, floor_count: Number(e.target.value) })} required disabled={isLoading} />
+      <Input
+        label="Total Floors"
+        type="number"
+        min={0}
+        max={25}
+        value={formData.floor_count}
+        onChange={(e) =>
+          setFormData({
+            ...formData,
+            floor_count: Number.isNaN(e.target.valueAsNumber) ? 0 : e.target.valueAsNumber,
+          })
+        }
+        error={errors.floor_count}
+        required
+        disabled={isLoading}
+      />
 
-      <div className="flex items-center justify-end gap-3 pt-2">
+      <div className="flex items-center justify-end gap-2.5 pt-2">
         {onCancel && (
           <Button type="button" variant="outline" size="sm" onClick={onCancel}>
             Cancel

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface ModalProps {
@@ -59,31 +60,29 @@ export const Modal: React.FC<ModalProps> = ({
       aria-labelledby={title ? 'modal-title' : undefined}
       aria-describedby={description ? 'modal-description' : undefined}
     >
-      {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-neutral-950/40 backdrop-blur-[2px] transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Modal Dialog Content */}
       <div
         ref={modalRef}
         className={cn(
-          'relative w-full rounded-2xl bg-white p-6 shadow-2xl transition-all z-10 max-h-[90vh] overflow-y-auto border border-slate-100',
+          'relative z-10 max-h-[90vh] w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-6 shadow-lg',
           sizeClasses[size],
           className
         )}
       >
-        <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+        <div className="flex items-start justify-between gap-4 border-b border-neutral-200 pb-4">
           <div>
             {title && (
-              <h3 id="modal-title" className="text-lg font-semibold text-slate-900">
+              <h3 id="modal-title" className="font-display text-base font-semibold text-neutral-950">
                 {title}
               </h3>
             )}
             {description && (
-              <p id="modal-description" className="text-sm text-slate-500 mt-0.5">
+              <p id="modal-description" className="mt-1 text-sm text-neutral-500">
                 {description}
               </p>
             )}
@@ -91,16 +90,14 @@ export const Modal: React.FC<ModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
             aria-label="Close modal"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="mt-4">{children}</div>
+        <div className="mt-5">{children}</div>
       </div>
     </div>
   );

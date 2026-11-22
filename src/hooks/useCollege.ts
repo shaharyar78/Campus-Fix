@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { College } from '@/types';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, getClientAuthHeaders } from '@/lib/supabase/client';
 
 type CollegeInput = { name: string; slug: string; email_domain?: string; address?: string };
 
@@ -11,7 +11,7 @@ export function useCollege(initialCollegeId?: string | null) {
   const [selectedCollegeId, setSelectedCollegeId] = useState<string | null>(initialCollegeId || null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const fetchColleges = useCallback(async () => {
     setIsLoading(true);
@@ -49,7 +49,8 @@ export function useCollege(initialCollegeId?: string | null) {
     try {
       const response = await fetch('/api/colleges', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', ...getClientAuthHeaders() },
         body: JSON.stringify(input),
       });
       const result = await response.json();
@@ -67,7 +68,8 @@ export function useCollege(initialCollegeId?: string | null) {
     try {
       const response = await fetch('/api/colleges', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', ...getClientAuthHeaders() },
         body: JSON.stringify({ id, ...input }),
       });
       const result = await response.json();

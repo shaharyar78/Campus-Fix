@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { CreateReportInput, Report, ReportFilterOptions, ReportStatus } from '@/types';
 import { generateTrackingId } from '@/lib/trackingId';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, getClientAuthHeaders } from '@/lib/supabase/client';
 
 export function useReports(
   collegeId?: string | null,
@@ -12,7 +12,7 @@ export function useReports(
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const submitterId = filters?.submitter_id;
   const statusFilter = filters?.status;
   const categoryFilter = filters?.category;
@@ -100,13 +100,20 @@ export function useReports(
     try {
       const response = await fetch(`/api/reports/${reportId}/updates`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', ...getClientAuthHeaders() },
         body: JSON.stringify({ status, message: note?.trim() || `Status changed to ${status}.` }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error?.message || 'Could not update this report.');
       const updatedAt = new Date().toISOString();
-      setReports((current) => current.map((report) => report.id === reportId ? { ...report, status, updated_at: updatedAt, ...(status === 'resolved' ? { resolved_at: updatedAt } : {}) } : report));
+      const resolvedPatch =
+        status === 'resolved'
+          ? { resolved_at: updatedAt }
+          : status !== 'closed'
+            ? { resolved_at: null }
+            : {};
+      setReports((current) => current.map((report) => report.id === reportId ? { ...report, status, updated_at: updatedAt, ...resolvedPatch } : report));
       return { data: result.data, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Could not update this report.' };

@@ -11,7 +11,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { user, profile } = await getAuthContext(request);
   if (!user || !profile) return apiError('UNAUTHORIZED', 'Authentication required', 401);
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   let query = supabase.from('reports').select('*, building:buildings(id, name, code), submitter:profiles!submitter_id(id, full_name, email)').limit(1);
   query = isUuid(id) ? query.eq('id', id) : query.eq('tracking_id', id);
   if (profile.college_id) query = query.eq('college_id', profile.college_id);
@@ -34,7 +34,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const body = payload;
   if (body.status !== undefined && (typeof body.status !== 'string' || !validStatuses.includes(body.status as ReportStatus))) return apiError('VALIDATION_ERROR', 'Invalid report status', 400);
 
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   if (profile.role === 'admin' && !profile.college_id) return apiError('COLLEGE_REQUIRED', 'Your account is not assigned to a college', 400);
   let query = supabase.from('reports').select('id, college_id').limit(1);
   if (profile.role !== 'super_admin' && profile.college_id) query = query.eq('college_id', profile.college_id);
@@ -44,14 +44,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!existing) return apiError('NOT_FOUND', 'Report not found', 404);
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (typeof body.status === 'string') updates.status = body.status as ReportStatus;
+  if (typeof body.status === 'string') {
+    updates.status = body.status as ReportStatus;
+    if (body.status === 'resolved') {
+      updates.resolved_at = updates.updated_at;
+    } else if (body.status !== 'closed') {
+      updates.resolved_at = null;
+    }
+  }
   if (body.assigned_to === null || typeof body.assigned_to === 'string') updates.assigned_to = body.assigned_to;
   if (body.building_id === null || typeof body.building_id === 'string') updates.building_id = body.building_id;
   if (body.floor === null || typeof body.floor === 'string') updates.floor = body.floor;
   if (body.room === null || typeof body.room === 'string') updates.room = body.room;
   if (body.section === null || typeof body.section === 'string') updates.section = body.section;
   if (typeof body.situation === 'string' && ['normal', 'medium', 'high', 'critical'].includes(body.situation)) updates.situation = body.situation;
-  if (body.status === 'resolved') updates.resolved_at = new Date().toISOString();
 
   const { data, error } = await supabase.from('reports').update(updates).eq('id', existing.id).select().single();
   if (error) return apiError('DATABASE_ERROR', 'Could not update the report', 500);

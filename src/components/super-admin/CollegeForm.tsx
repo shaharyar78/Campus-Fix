@@ -35,17 +35,22 @@ export const CollegeForm: React.FC<CollegeFormProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
 
-  const handleNameChange = (name: string) => {
-    // Auto-generate code/slug from name if slug wasn't manually edited
-    const autoSlug = name
+  const toSlug = (value: string) =>
+    value
       .toLowerCase()
       .trim()
       .replace(/[^\w\s-]/g, '')
       .replace(/\s+/g, '-');
+
+  const handleNameChange = (name: string) => {
+    const autoSlug = toSlug(name);
     setFormData((prev) => ({
       ...prev,
       name,
-      slug: prev.slug === '' || prev.slug === autoSlug.slice(0, -1) ? autoSlug : prev.slug,
+      slug:
+        !initialValue && (prev.slug === '' || prev.slug === toSlug(prev.name))
+          ? autoSlug
+          : prev.slug,
     }));
   };
 
@@ -63,7 +68,7 @@ export const CollegeForm: React.FC<CollegeFormProps> = ({
     const res = await onSubmit(formData);
     if (res?.error) {
       setGeneralError(res.error);
-    } else {
+    } else if (!initialValue) {
       setFormData({ name: '', slug: '', email_domain: '', address: '' });
     }
   };
@@ -71,7 +76,7 @@ export const CollegeForm: React.FC<CollegeFormProps> = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {generalError && (
-        <div className="rounded-lg bg-rose-50 border border-rose-200 p-3 text-xs text-rose-700">
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700" role="alert">
           {generalError}
         </div>
       )}
@@ -85,14 +90,14 @@ export const CollegeForm: React.FC<CollegeFormProps> = ({
         required
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Input
           label="College Code / Slug"
           placeholder="e.g. aktu"
           value={formData.slug}
           onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase() })}
           error={errors.slug}
-          helperText="Used for tracking IDs and tenant isolation (e.g., AKTU)."
+          helperText="Used for tracking IDs and tenant isolation (e.g. AKTU)."
           required
         />
 
@@ -119,7 +124,7 @@ export const CollegeForm: React.FC<CollegeFormProps> = ({
         error={errors.address}
       />
 
-      <div className="flex items-center justify-end gap-3 pt-3">
+      <div className="flex items-center justify-end gap-2.5 pt-2">
         {onCancel && (
           <Button type="button" variant="outline" size="sm" onClick={onCancel}>
             Cancel

@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   if (!user || !profile) return apiError('UNAUTHORIZED', 'Authentication required to view messages', 401);
   const params = new URL(request.url).searchParams;
   const reportId = params.get('report_id');
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   const requestedCollegeId = params.get('college_id');
   const collegeId = profile.role === 'super_admin' ? requestedCollegeId : profile.college_id;
   if (!collegeId) return apiError('COLLEGE_REQUIRED', 'Select a campus to open its chat', 400);
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   const messageBody = typeof body.body === 'string' ? body.body : '';
   if (messageBody.length > 4000) return apiError('VALIDATION_ERROR', 'Message body cannot exceed 4000 characters', 400);
 
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   const collegeId = profile.role === 'super_admin' && typeof body.college_id === 'string'
     ? body.college_id
     : profile.college_id;

@@ -14,8 +14,8 @@ export const Card: React.FC<CardProps> = ({
   return (
     <div
       className={cn(
-        'glass-panel rounded-2xl p-6 transition-all',
-        hoverable && 'hover:shadow-md hover:border-slate-300',
+        'rounded-xl border border-neutral-200 bg-white p-6 transition-colors duration-150',
+        hoverable && 'hover:border-neutral-300',
         className
       )}
       {...props}
@@ -31,7 +31,7 @@ export const CardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   ...props
 }) => {
   return (
-    <div className={cn('mb-4 flex flex-col space-y-1.5', className)} {...props}>
+    <div className={cn('mb-4 flex flex-col space-y-1', className)} {...props}>
       {children}
     </div>
   );
@@ -44,7 +44,7 @@ export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
 }) => {
   return (
     <h3
-      className={cn('text-lg font-semibold leading-none tracking-tight text-slate-900', className)}
+      className={cn('font-display text-lg font-semibold leading-snug tracking-tight text-neutral-950', className)}
       {...props}
     >
       {children}
@@ -58,7 +58,7 @@ export const CardDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement
   ...props
 }) => {
   return (
-    <p className={cn('text-sm text-slate-500', className)} {...props}>
+    <p className={cn('text-sm text-neutral-500', className)} {...props}>
       {children}
     </p>
   );
@@ -78,7 +78,7 @@ export const CardFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   ...props
 }) => {
   return (
-    <div className={cn('mt-6 flex items-center pt-4 border-t border-slate-100', className)} {...props}>
+    <div className={cn('mt-6 flex items-center pt-4 border-t border-neutral-200', className)} {...props}>
       {children}
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 interface MessageInputProps {
@@ -27,12 +28,15 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      void handleSend();
     }
   };
 
   return (
-    <form onSubmit={handleSend} className="flex items-end gap-2 border-t border-slate-200 bg-white p-3">
+    <form
+      onSubmit={handleSend}
+      className="flex items-end gap-2.5 border-t border-neutral-200 bg-white p-3.5"
+    >
       <div className="relative flex-1">
         <textarea
           rows={1}
@@ -40,7 +44,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="block w-full resize-none rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 max-h-32"
+          className="block max-h-32 w-full resize-none rounded-lg border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/15"
         />
       </div>
 
@@ -50,12 +54,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         size="md"
         isLoading={isSending}
         disabled={!text.trim()}
-        className="shrink-0 rounded-xl"
+        leftIcon={<Send className="h-3.5 w-3.5" />}
+        className="shrink-0"
         aria-label="Send message"
       >
-        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-        </svg>
         Send
       </Button>
     </form>

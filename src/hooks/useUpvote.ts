@@ -1,17 +1,59 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
-export function useUpvote(reportId: string, initialCount: number = 0, initialHasUpvoted: boolean = false, userId?: string) {
+export function useUpvote(
+  reportId: string,
+  initialCount: number = 0,
+  initialHasUpvoted: boolean = false,
+  userId?: string
+) {
   const [upvotes, setUpvotes] = useState<number>(initialCount);
   const [hasUpvoted, setHasUpvoted] = useState<boolean>(initialHasUpvoted);
   const [isMutating, setIsMutating] = useState<boolean>(false);
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (active) setUpvotes(initialCount);
+    });
+    return () => {
+      active = false;
+    };
+  }, [reportId, initialCount]);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      if (!reportId || !userId) {
+        if (active) setHasUpvoted(initialHasUpvoted);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('report_upvotes')
+          .select('report_id')
+          .eq('report_id', reportId)
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (active && !error) {
+          setHasUpvoted(Boolean(data));
+        }
+      } catch {
+        if (active) setHasUpvoted(initialHasUpvoted);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [reportId, userId, initialHasUpvoted, supabase]);
 
   const toggleUpvote = async () => {
-    if (isMutating || !userId) return;
+    if (isMutating || !userId || !reportId) return;
     setIsMutating(true);
 
     const previousCount = upvotes;

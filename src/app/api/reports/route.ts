@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   if (!user || !profile) return apiError('UNAUTHORIZED', 'Authentication required to view reports', 401);
   if (profile.role !== 'super_admin' && !profile.college_id) return apiError('COLLEGE_REQUIRED', 'Your account is not assigned to a college', 400);
   const params = new URL(request.url).searchParams;
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   let query = supabase
     .from('reports')
     .select('*, building:buildings(id, name, code), submitter:profiles!submitter_id(id, full_name, email)')
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     ? body.building_label.trim()
     : null;
 
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   const targetCollegeId = profile.role === 'super_admin' && typeof body.college_id === 'string'
     ? body.college_id
     : profile.college_id;

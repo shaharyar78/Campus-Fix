@@ -3,12 +3,12 @@ import { getAuthContext, apiError } from '@/lib/serverAuth';
 import { isRecord, validateBuildingInput } from '@/lib/validators';
 import { createClient } from '@/lib/supabase/server';
 
-export async function GET() {
-  const { user, profile } = await getAuthContext();
+export async function GET(request: Request) {
+  const { user, profile } = await getAuthContext(request);
   if (!user || !profile) return apiError('UNAUTHORIZED', 'Authentication required', 401);
   if (!profile.college_id) return NextResponse.json({ data: [] });
 
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   const { data, error } = await supabase.from('buildings').select('*').eq('college_id', profile.college_id).order('name');
   if (error) return apiError('DATABASE_ERROR', 'Could not load campus buildings', 500);
   return NextResponse.json({ data: data || [] });
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   const validation = validateBuildingInput({ name, code });
   if (!validation.isValid) return apiError('VALIDATION_ERROR', Object.values(validation.errors).join(', '), 400);
 
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   const { data, error } = await supabase.from('buildings').insert([{
     college_id: profile.college_id,
     name: name.trim(),

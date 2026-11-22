@@ -15,14 +15,14 @@ export const Spinner: React.FC<SpinnerProps> = ({
   const sizeClasses = {
     sm: 'w-4 h-4 border-2',
     md: 'w-6 h-6 border-2',
-    lg: 'w-10 h-10 border-3',
+    lg: 'w-9 h-9 border-[3px]',
   };
 
   return (
     <div className="inline-flex items-center justify-center gap-2" role="status" aria-live="polite">
       <div
         className={cn(
-          'animate-spin rounded-full border-brand-500 border-t-transparent',
+          'animate-spin rounded-full border-neutral-900 border-t-transparent',
           sizeClasses[size],
           className
         )}

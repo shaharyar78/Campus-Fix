@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
@@ -24,8 +25,11 @@ export const TrackingSearch: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full max-w-xl">
-      <div className="flex-1 w-full">
+    <form
+      onSubmit={handleSearch}
+      className="flex w-full max-w-xl flex-col items-start gap-2.5 sm:flex-row sm:items-start"
+    >
+      <div className="w-full flex-1">
         <Input
           type="text"
           placeholder="COLLEGE-YYYYMM-XXXX"
@@ -35,14 +39,11 @@ export const TrackingSearch: React.FC = () => {
             if (error) setError(null);
           }}
           error={error || undefined}
-          leftIcon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          }
+          leftIcon={<Search className="h-4 w-4" aria-hidden="true" />}
+          className="font-mono text-sm"
         />
       </div>
-      <Button type="submit" variant="primary" className="w-full sm:w-auto shrink-0">
+      <Button type="submit" variant="primary" className="w-full shrink-0 sm:w-auto">
         Track Status
       </Button>
     </form>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Building } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 
@@ -8,7 +8,7 @@ export function useBuildings(collegeId?: string | null) {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const fetchBuildings = useCallback(async () => {
     if (!collegeId) {

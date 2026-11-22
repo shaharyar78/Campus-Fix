@@ -1,46 +1,75 @@
 import Link from 'next/link';
+import { ArrowRight, ArrowUpRight, Building2, ShieldCheck, Wrench } from 'lucide-react';
 
-const highlights = [
-  { number: '01', title: 'Report clearly', text: 'Add the location, a short description, and a photo when it helps.' },
-  { number: '02', title: 'Follow progress', text: 'See each update in one place, from submitted to resolved.' },
-  { number: '03', title: 'Fix it together', text: 'Support existing reports so campus teams can prioritize the right work.' },
+const steps = [
+  {
+    number: '01',
+    title: 'Report with precision',
+    text: 'Select your campus building, floor, and room, and attach a photo with a brief note.',
+    icon: Building2,
+  },
+  {
+    number: '02',
+    title: 'Follow live progress',
+    text: 'Monitor every status change from submitted to resolved using your unique tracking ID.',
+    icon: Wrench,
+  },
+  {
+    number: '03',
+    title: 'Prioritize together',
+    text: 'Upvote existing campus reports so facilities teams focus on the highest-impact fixes first.',
+    icon: ShieldCheck,
+  },
 ];
 
 export default function HomePage() {
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-16 pt-10 sm:px-6 sm:pt-16 lg:px-8">
-      <section className="glass-panel relative isolate overflow-hidden rounded-[2rem] px-6 py-12 sm:px-12 sm:py-16 lg:px-16 lg:py-20">
-        <div className="pointer-events-none absolute -right-20 -top-24 -z-10 h-80 w-80 rounded-full bg-blue-300/45 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-40 left-1/3 -z-10 h-80 w-80 rounded-full bg-violet-300/35 blur-3xl" />
+    <div className="mx-auto max-w-6xl py-6 sm:py-12">
+      <section className="rounded-2xl border border-neutral-200 bg-white px-6 py-12 sm:px-12 sm:py-16 lg:px-16 lg:py-20">
         <div className="max-w-3xl">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/55 px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-blue-800 shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" /> Campus care, made simple
-          </div>
-          <h1 className="text-4xl font-semibold leading-[1.08] tracking-[-0.04em] text-slate-950 sm:text-6xl lg:text-7xl">
-            A better campus starts with <span className="text-blue-700">one report.</span>
-          </h1>
-          <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-            Report maintenance issues, follow the repair, and help your campus team focus on what matters.
+          <p className="font-mono text-xs font-medium uppercase tracking-[0.14em] text-blue-600">
+            Campus maintenance workspace
           </p>
-          <div className="mt-9 flex flex-wrap items-center gap-3">
-            <Link href="/report/new" className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white shadow-xl shadow-blue-950/15 transition hover:-translate-y-0.5 hover:bg-blue-800">
-              Report an issue <span aria-hidden="true">→</span>
+          <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.08] tracking-[-0.03em] text-neutral-950 [text-wrap:balance] sm:text-5xl lg:text-6xl">
+            A better campus starts with one report.
+          </h1>
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-neutral-600 sm:text-lg">
+            Report facility issues in seconds, follow live repair updates, and help your campus team focus on what matters.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Link
+              href="/report/new"
+              className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-lg bg-neutral-950 px-5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+            >
+              <span>Report an issue</span>
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-            <Link href="/track" className="inline-flex items-center gap-2 rounded-xl border border-white/90 bg-white/55 px-5 py-3.5 text-sm font-semibold text-slate-800 transition hover:bg-white/85">
-              Track a report <span aria-hidden="true">↗</span>
+            <Link
+              href="/track"
+              className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-lg border border-neutral-200 bg-white px-5 text-sm font-medium text-neutral-800 transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+            >
+              <span>Track a report</span>
+              <ArrowUpRight className="h-4 w-4 text-neutral-500" aria-hidden="true" />
             </Link>
           </div>
-          <p className="mt-5 text-xs font-medium text-slate-500">One simple place for students and campus teams.</p>
         </div>
 
-        <div className="mt-14 grid gap-3 border-t border-white/70 pt-6 sm:mt-20 sm:grid-cols-3 sm:gap-5 sm:pt-8">
-          {highlights.map((item) => (
-            <article key={item.number} className="glass-soft rounded-2xl p-5 sm:p-6">
-              <span className="text-xs font-bold tracking-[0.16em] text-blue-700">{item.number}</span>
-              <h2 className="mt-4 text-base font-semibold text-slate-900">{item.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{item.text}</p>
-            </article>
-          ))}
+        <div className="mt-14 grid gap-6 border-t border-neutral-200 pt-10 sm:mt-16 sm:grid-cols-3">
+          {steps.map((item) => {
+            const Icon = item.icon;
+            return (
+              <article key={item.number} className="space-y-3">
+                <div className="flex items-center justify-between text-neutral-400">
+                  <span className="font-mono text-xs font-medium tracking-wider text-blue-600">
+                    {item.number}
+                  </span>
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                </div>
+                <h2 className="font-display text-base font-semibold text-neutral-950">{item.title}</h2>
+                <p className="text-sm leading-relaxed text-neutral-600">{item.text}</p>
+              </article>
+            );
+          })}
         </div>
       </section>
     </div>

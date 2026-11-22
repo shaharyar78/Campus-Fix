@@ -1,4 +1,7 @@
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+export const dynamic = 'force-dynamic';
+
+import Link from 'next/link';
+import { LogIn } from 'lucide-react';
 import { LoginForm } from '@/components/auth/LoginForm';
 
 export const metadata = {
@@ -8,25 +11,51 @@ export const metadata = {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
-      <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/80 bg-white/70 shadow-2xl backdrop-blur-xl lg:grid-cols-2">
-       <section className="hidden flex-col justify-between bg-gradient-to-br from-slate-950 via-slate-900 to-orange-900 p-10 text-white lg:flex"><div className="text-sm font-bold tracking-wide">CAMPUSFIX</div><div><p className="text-sm font-semibold uppercase tracking-[.2em] text-orange-300">A better campus starts here</p><h1 className="mt-4 text-4xl font-bold leading-tight">Report it.<br/>Track it.<br/>Get it fixed.</h1><p className="mt-4 max-w-sm text-sm leading-6 text-slate-300">One place for campus issues and updates from your maintenance team.</p></div><p className="text-xs text-slate-400">Made for every campus.</p></section>
-       <Card className="w-full rounded-none border-0 bg-transparent shadow-none">
-        <CardHeader className="text-center space-y-2">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-            </svg>
+    <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-10 sm:px-6">
+      <div className="grid w-full max-w-4xl overflow-hidden rounded-2xl border border-neutral-200 bg-white lg:grid-cols-2">
+        <section className="hidden flex-col justify-between bg-neutral-950 p-10 text-white lg:flex">
+          <Link href="/" className="font-display text-sm font-bold tracking-tight text-white">
+            CampusFix
+          </Link>
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.16em] text-blue-400">
+              Campus maintenance
+            </p>
+            <h1 className="mt-4 font-display text-3xl font-semibold leading-tight tracking-tight">
+              Report it.
+              <br />
+              Track it.
+              <br />
+              Get it fixed.
+            </h1>
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-neutral-400">
+              One workspace for students and facilities teams to resolve campus issues transparently.
+            </p>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-          <CardDescription>
-            Enter your credentials to access your campus dashboard
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          <p className="text-xs text-neutral-500">Scoped per institution.</p>
+        </section>
+
+        <div className="p-6 sm:p-10">
+          <div className="mb-8 flex items-center justify-between lg:justify-end">
+            <Link href="/" className="font-display text-sm font-bold tracking-tight text-neutral-950 lg:hidden">
+              CampusFix
+            </Link>
+            <div className="grid h-9 w-9 place-items-center rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-700">
+              <LogIn className="h-4 w-4" aria-hidden="true" />
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <h2 className="font-display text-2xl font-semibold tracking-tight text-neutral-950">
+              Sign in
+            </h2>
+            <p className="mt-1.5 text-sm text-neutral-500">
+              Enter your credentials to access your campus workspace.
+            </p>
+          </div>
+
           <LoginForm />
-        </CardContent>
-       </Card>
+        </div>
       </div>
     </div>
   );

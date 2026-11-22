@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertTriangle, BarChart3, CheckCircle2, Wrench } from 'lucide-react';
 import { Report } from '@/types';
 
 interface StatsCardsProps {
@@ -13,57 +14,51 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ reports }) => {
   const resolutionRate = total > 0 ? Math.round((resolved / total) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-        <div className="flex items-center justify-between text-slate-500">
-          <span className="text-xs font-semibold uppercase tracking-wider">Total Reports</span>
-          <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-          </div>
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="rounded-xl border border-neutral-200 bg-white p-5">
+        <div className="flex items-center justify-between text-neutral-500">
+          <span className="text-xs font-medium uppercase tracking-wider">Total Reports</span>
+          <BarChart3 className="h-4 w-4 text-neutral-400" aria-hidden="true" />
         </div>
-        <div className="mt-2 text-2xl font-bold text-slate-900">{total}</div>
-        <span className="text-xs text-slate-500">Across campus buildings</span>
+        <div className="mt-3 font-display text-2xl font-semibold tracking-tight text-neutral-950 tabular-nums sm:text-3xl">
+          {total}
+        </div>
+        <span className="mt-1 block text-xs text-neutral-500">Across campus buildings</span>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-        <div className="flex items-center justify-between text-slate-500">
-          <span className="text-xs font-semibold uppercase tracking-wider">Needs Review</span>
-          <div className="rounded-lg bg-rose-50 p-2 text-rose-600">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
+      <div className="rounded-xl border border-neutral-200 bg-white p-5">
+        <div className="flex items-center justify-between text-neutral-500">
+          <span className="text-xs font-medium uppercase tracking-wider">Needs Review</span>
+          <AlertTriangle className="h-4 w-4 text-rose-600" aria-hidden="true" />
         </div>
-        <div className="mt-2 text-2xl font-bold text-rose-600">{pending}</div>
-        <span className="text-xs text-slate-500">Awaiting technician triage</span>
+        <div className="mt-3 font-display text-2xl font-semibold tracking-tight text-rose-600 tabular-nums sm:text-3xl">
+          {pending}
+        </div>
+        <span className="mt-1 block text-xs text-neutral-500">Awaiting triage</span>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-        <div className="flex items-center justify-between text-slate-500">
-          <span className="text-xs font-semibold uppercase tracking-wider">In Progress</span>
-          <div className="rounded-lg bg-amber-50 p-2 text-amber-600">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
+      <div className="rounded-xl border border-neutral-200 bg-white p-5">
+        <div className="flex items-center justify-between text-neutral-500">
+          <span className="text-xs font-medium uppercase tracking-wider">In Progress</span>
+          <Wrench className="h-4 w-4 text-amber-600" aria-hidden="true" />
         </div>
-        <div className="mt-2 text-2xl font-bold text-amber-600">{inProgress}</div>
-        <span className="text-xs text-slate-500">Actively being worked on</span>
+        <div className="mt-3 font-display text-2xl font-semibold tracking-tight text-amber-600 tabular-nums sm:text-3xl">
+          {inProgress}
+        </div>
+        <span className="mt-1 block text-xs text-neutral-500">Active repairs</span>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-        <div className="flex items-center justify-between text-slate-500">
-          <span className="text-xs font-semibold uppercase tracking-wider">Resolution Rate</span>
-          <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
+      <div className="rounded-xl border border-neutral-200 bg-white p-5">
+        <div className="flex items-center justify-between text-neutral-500">
+          <span className="text-xs font-medium uppercase tracking-wider">Resolution Rate</span>
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
         </div>
-        <div className="mt-2 text-2xl font-bold text-emerald-600">{resolutionRate}%</div>
-        <span className="text-xs text-slate-500">{resolved} tickets resolved</span>
+        <div className="mt-3 font-display text-2xl font-semibold tracking-tight text-emerald-600 tabular-nums sm:text-3xl">
+          {resolutionRate}%
+        </div>
+        <span className="mt-1 block text-xs text-neutral-500 tabular-nums">
+          {resolved} tickets resolved
+        </span>
       </div>
     </div>
   );

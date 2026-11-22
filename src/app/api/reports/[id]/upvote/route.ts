@@ -7,7 +7,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!user || !profile) return apiError('UNAUTHORIZED', 'Authentication required to upvote', 401);
   if (profile.role !== 'super_admin' && !profile.college_id) return apiError('COLLEGE_REQUIRED', 'Your account is not assigned to a college', 400);
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   let reportQuery = supabase.from('reports').select('id, upvote_count').limit(1);
   if (profile.role !== 'super_admin' && profile.college_id) reportQuery = reportQuery.eq('college_id', profile.college_id);

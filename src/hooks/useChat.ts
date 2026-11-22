@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ChatMessage } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 
@@ -9,7 +9,7 @@ export function useChat(reportId?: string | null, collegeId?: string | null) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const fetchMessages = useCallback(async () => {
     if (!collegeId) {

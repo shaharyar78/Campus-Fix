@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (body.status !== undefined && (typeof body.status !== 'string' || !validStatuses.includes(body.status as ReportStatus))) return apiError('VALIDATION_ERROR', 'Invalid report status', 400);
 
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await createClient(request);
   if (profile.role === 'admin' && !profile.college_id) return apiError('COLLEGE_REQUIRED', 'Your account is not assigned to a college', 400);
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   let reportQuery = supabase.from('reports').select('id, college_id').limit(1);
@@ -39,7 +39,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   if (typeof body.status === 'string') {
     const updatedAt = new Date().toISOString();
-    const updateResult = await supabase.from('reports').update({ status: body.status as ReportStatus, updated_at: updatedAt, ...(body.status === 'resolved' ? { resolved_at: updatedAt } : {}) }).eq('id', report.id);
+    const resolvedPatch =
+      body.status === 'resolved'
+        ? { resolved_at: updatedAt }
+        : body.status !== 'closed'
+          ? { resolved_at: null }
+          : {};
+    const updateResult = await supabase
+      .from('reports')
+      .update({ status: body.status as ReportStatus, updated_at: updatedAt, ...resolvedPatch })
+      .eq('id', report.id);
     if (updateResult.error) return apiError('DATABASE_ERROR', 'Update saved, but report status did not change', 500);
   }
   return NextResponse.json({ data }, { status: 201 });

@@ -28,23 +28,23 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const variantClasses = {
       primary:
-        'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 shadow-sm border border-transparent disabled:bg-blue-300',
+        'bg-neutral-900 text-white hover:bg-neutral-800 active:bg-neutral-950 border border-transparent disabled:bg-neutral-300 disabled:text-neutral-500',
       secondary:
-        'bg-slate-800 text-white hover:bg-slate-900 active:bg-black shadow-sm border border-transparent disabled:bg-slate-400',
+        'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 border border-transparent disabled:bg-blue-300',
       outline:
-        'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 active:bg-slate-100 disabled:bg-slate-50 disabled:text-slate-400',
+        'bg-white text-neutral-800 border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 active:bg-neutral-100 disabled:bg-neutral-50 disabled:text-neutral-400',
       danger:
-        'bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 shadow-sm border border-transparent disabled:bg-rose-300',
+        'bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 border border-transparent disabled:bg-rose-300',
       ghost:
-        'bg-transparent text-slate-700 hover:bg-slate-100 active:bg-slate-200 disabled:text-slate-400',
+        'bg-transparent text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100 active:bg-neutral-200/70 disabled:text-neutral-400',
       success:
-        'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 shadow-sm border border-transparent disabled:bg-emerald-300',
+        'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 border border-transparent disabled:bg-emerald-300',
     };
 
     const sizeClasses = {
-      sm: 'px-3 py-1.5 text-xs font-medium rounded-md gap-1.5',
-      md: 'px-4 py-2 text-sm font-medium rounded-lg gap-2',
-      lg: 'px-5 py-2.5 text-base font-semibold rounded-lg gap-2.5',
+      sm: 'min-h-9 px-3 py-1.5 text-xs font-medium rounded-lg gap-1.5',
+      md: 'min-h-10 px-4 py-2 text-sm font-medium rounded-lg gap-2',
+      lg: 'min-h-11 px-5 py-2.5 text-sm font-semibold rounded-lg gap-2',
     };
 
     return (
@@ -54,14 +54,23 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || isLoading}
         aria-busy={isLoading}
         className={cn(
-          'inline-flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed select-none',
+          'inline-flex items-center justify-center whitespace-nowrap shrink-0 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed select-none',
           variantClasses[variant],
           sizeClasses[size],
           className
         )}
         {...props}
       >
-        {isLoading && <Spinner size={size === 'lg' ? 'md' : 'sm'} className={variant === 'outline' || variant === 'ghost' ? 'border-slate-600' : 'border-white'} />}
+        {isLoading && (
+          <Spinner
+            size="sm"
+            className={
+              variant === 'outline' || variant === 'ghost'
+                ? 'border-neutral-600'
+                : 'border-white'
+            }
+          />
+        )}
         {!isLoading && leftIcon && <span className="inline-flex shrink-0">{leftIcon}</span>}
         <span>{children}</span>
         {!isLoading && rightIcon && <span className="inline-flex shrink-0">{rightIcon}</span>}

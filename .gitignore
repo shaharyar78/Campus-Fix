@@ -35,3 +35,7 @@ next-env.d.ts
 *.pem
 .idea
 .vscode
+.agents/
+.gemini/
+skills-lock.json
+AGENTS.md

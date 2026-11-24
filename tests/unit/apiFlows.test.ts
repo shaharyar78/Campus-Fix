@@ -206,6 +206,47 @@ describe('CampusFix End-to-End API & Security Flows (Scenarios 1-10)', () => {
     expect(usernameLoginJson.user.user_metadata.role).toBe('super_admin');
   });
 
+  it('rejects student registration without a college email domain while allowing pending admins', async () => {
+    const glbitmCollege = getMockStore().colleges.find((college) => college.id === GLBITM_ID);
+    expect(glbitmCollege).toBeDefined();
+    glbitmCollege!.email_domain = '';
+
+    const studentResponse = await registerPOST(
+      makeJsonRequest('/api/auth/register', {
+        method: 'POST',
+        body: {
+          email: 'student@personal.example',
+          password: 'password123',
+          full_name: 'Student Example',
+          college_id: GLBITM_ID,
+          role: 'student',
+        },
+      })
+    );
+    expect(studentResponse.status).toBe(400);
+    expect(await studentResponse.json()).toEqual({
+      error: 'This college is not accepting registrations yet.',
+    });
+
+    const adminResponse = await registerPOST(
+      makeJsonRequest('/api/auth/register', {
+        method: 'POST',
+        body: {
+          email: 'admin@personal.example',
+          password: 'password123',
+          full_name: 'Admin Example',
+          college_id: GLBITM_ID,
+          role: 'admin',
+        },
+      })
+    );
+    expect(adminResponse.status).toBe(200);
+    expect(
+      getMockStore().profiles.find((profile) => profile.email === 'admin@personal.example')
+        ?.approval_status
+    ).toBe('pending');
+  });
+
   it('2) forgot-password generic success + 8-character minimum on password update', () => {
     const existingRes = mockResetPasswordForEmail('aarav.sharma@gmail.com');
     const missingRes = mockResetPasswordForEmail('nobody@gmail.com');

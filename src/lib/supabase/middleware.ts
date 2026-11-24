@@ -85,9 +85,12 @@ function enforceRoleRedirect(
   return null;
 }
 
-export async function updateSession(request: NextRequest) {
+export async function updateSession(
+  request: NextRequest,
+  requestHeaders = new Headers(request.headers)
+) {
   let supabaseResponse = NextResponse.next({
-    request,
+    request: { headers: requestHeaders },
   });
 
   const pathname = request.nextUrl.pathname;
@@ -125,8 +128,9 @@ export async function updateSession(request: NextRequest) {
       },
       setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        requestHeaders.set('cookie', request.cookies.toString());
         supabaseResponse = NextResponse.next({
-          request,
+          request: { headers: requestHeaders },
         });
         cookiesToSet.forEach(({ name, value, options }) =>
           supabaseResponse.cookies.set(name, value, {

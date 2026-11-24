@@ -143,6 +143,7 @@ export function validateBuildingInput(data: {
 export function validateCollegeInput(data: {
   name?: string;
   slug?: string;
+  email_domain?: string | null;
 }): ValidationResult {
   const errors: Record<string, string> = {};
 
@@ -154,8 +155,48 @@ export function validateCollegeInput(data: {
     errors.slug = 'Slug must contain only lowercase letters, numbers, and hyphens.';
   }
 
+  const emailDomain = data.email_domain?.trim() || '';
+  if (!emailDomain) {
+    errors.email_domain = 'At least one allowed email domain is required.';
+  } else if (/\s|@/.test(emailDomain)) {
+    errors.email_domain = 'Enter comma-separated domains without spaces or @.';
+  } else if (
+    emailDomain.split(',').some(
+      (domain) =>
+        !/^(?=.{3,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(
+          domain
+        )
+    )
+  ) {
+    errors.email_domain = 'Enter valid comma-separated domains, such as college.edu.';
+  }
+
   return {
     isValid: Object.keys(errors).length === 0,
     errors,
   };
+}
+
+export function getCollegeRegistrationDomainError(
+  email: string,
+  emailDomain: string | null | undefined,
+  role: 'student' | 'admin'
+): string | null {
+  const allowedDomains = (emailDomain || '')
+    .split(',')
+    .map((domain) => domain.trim().replace(/^@/, '').toLowerCase())
+    .filter(Boolean);
+
+  if (role === 'student' && allowedDomains.length === 0) {
+    return 'This college is not accepting registrations yet.';
+  }
+
+  if (allowedDomains.length === 0) return null;
+
+  const emailAddressDomain = email.trim().toLowerCase().split('@').pop() || '';
+  if (!allowedDomains.includes(emailAddressDomain)) {
+    return 'Use an email address from your selected college domain.';
+  }
+
+  return null;
 }

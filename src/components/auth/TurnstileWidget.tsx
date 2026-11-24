@@ -75,6 +75,7 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
       } else {
         const script = document.createElement('script');
         script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        script.nonce = document.querySelector<HTMLScriptElement>('script[nonce]')?.nonce || '';
         script.async = true;
         script.defer = true;
         script.addEventListener('load', renderWidget);

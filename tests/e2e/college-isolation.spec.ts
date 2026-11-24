@@ -58,6 +58,7 @@ test.describe('Multi-college registration, page guards, admin, and super-admin w
     await expect(page.getByRole('heading', { name: /Manage Campus Buildings|Campus Buildings/i })).toBeVisible();
 
     // Sign out and log in as superadmin via username
+    await page.getByRole('button', { name: 'Open account menu' }).click();
     await page.getByRole('button', { name: 'Sign out' }).click();
     await page.waitForURL('**/login');
     await page.locator('#login-identifier').fill('superadmin');

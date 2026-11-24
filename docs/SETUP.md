@@ -58,6 +58,14 @@ https://YOUR_DOMAIN/auth/callback?next=/auth/update-password
 ```
 
 Keep `http://localhost:3000/auth/callback` in the allow list only if local development still needs it.
+For Render, also allow both callback URLs:
+
+```text
+https://kcc-campus-fix.onrender.com/auth/callback
+https://kcc-campus-fix.onrender.com/auth/callback?next=/auth/update-password
+```
+
+**Confirm email must be ON** under **Authentication -> Providers -> Email**; users must verify their address before they can sign in.
 
 ### Password reset email
 
@@ -77,8 +85,14 @@ Keep `http://localhost:3000/auth/callback` in the allow list only if local devel
    http://localhost:3000/auth/callback
    http://localhost:3000/auth/callback?next=/auth/update-password
    ```
-4. **Email confirmation & template**: Enable **Confirm email** under **Authentication -> Providers -> Email**. Ensure the **Reset Password** email template includes `{{ .ConfirmationURL }}`.
-5. **Hosting environment variables (Vercel and Render)**: Configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. Keep `SUPABASE_SERVICE_ROLE_KEY` strictly server-side and never expose it to the client.
+4. **Email template**: Ensure the **Reset Password** email template includes `{{ .ConfirmationURL }}`.
+5. **Production environment checklist (Vercel and Render)**:
+   - Set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and server-only `SUPABASE_SERVICE_ROLE_KEY`.
+   - Configure either `REDIS_URL` or both `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` for shared rate limits.
+   - Set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` together when enabling Turnstile.
+   - Keep `ALLOW_IFRAME_EMBED=false` and `NEXT_PUBLIC_ALLOW_IFRAME_EMBED=false`.
+   - Do not set `MOCK_SESSION_SECRET` in production; it is only for local mock sessions.
+   - Keep `SUPABASE_SERVICE_ROLE_KEY` strictly server-side and never expose it to the client.
 
 ## Development
 

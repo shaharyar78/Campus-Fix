@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { DM_Sans, JetBrains_Mono, Plus_Jakarta_Sans } from 'next/font/google';
+import { connection } from 'next/server';
 import './globals.css';
 import { AppShell } from '@/components/layout/AppShell';
 
@@ -30,11 +31,13 @@ export const metadata: Metadata = {
     'A clean campus maintenance platform for reporting facility issues, selecting campus buildings, and tracking repairs.',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await connection();
+
   return (
     <html
       lang="en"

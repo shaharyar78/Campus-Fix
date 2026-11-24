@@ -6,7 +6,7 @@ import { getMockStore, hashMockPassword } from '@/lib/supabase/mockStore';
 import { requireJsonBody, requireSameOrigin } from '@/lib/serverAuth';
 import { checkRateLimit, getClientIp, rateLimitErrorResponse } from '@/lib/rateLimit';
 import { verifyTurnstileToken } from '@/lib/turnstile';
-import { validatePassword } from '@/lib/validators';
+import { getCollegeRegistrationDomainError, validatePassword } from '@/lib/validators';
 
 const CONFIRMATION_MESSAGE = 'Check your email to confirm your account.';
 
@@ -92,18 +92,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Select an active college before signing up.' }, { status: 400 });
       }
 
-      if (college.email_domain) {
-        const emailDomain = normalizedEmail.split('@')[1] || '';
-        const allowed = college.email_domain
-          .split(',')
-          .map((d: string) => d.trim().replace(/^@/, '').toLowerCase())
-          .filter(Boolean);
-        if (allowed.length > 0 && !allowed.includes(emailDomain)) {
-          return NextResponse.json(
-            { error: 'Use an email address from your selected college domain.' },
-            { status: 400 }
-          );
-        }
+      const domainError = getCollegeRegistrationDomainError(
+        normalizedEmail,
+        college.email_domain,
+        requestedRole
+      );
+      if (domainError) {
+        return NextResponse.json({ error: domainError }, { status: 400 });
       }
 
       const authClient = await createClient(request);
@@ -169,18 +164,13 @@ export async function POST(request: Request) {
     if (!college) {
       return NextResponse.json({ error: 'Select an active college before signing up.' }, { status: 400 });
     }
-    if (college.email_domain) {
-      const emailDomain = normalizedEmail.split('@')[1] || '';
-      const allowed = college.email_domain
-        .split(',')
-        .map((d) => d.trim().replace(/^@/, '').toLowerCase())
-        .filter(Boolean);
-      if (allowed.length > 0 && !allowed.includes(emailDomain)) {
-        return NextResponse.json(
-          { error: 'Use an email address from your selected college domain.' },
-          { status: 400 }
-        );
-      }
+    const domainError = getCollegeRegistrationDomainError(
+      normalizedEmail,
+      college.email_domain,
+      requestedRole
+    );
+    if (domainError) {
+      return NextResponse.json({ error: domainError }, { status: 400 });
     }
 
     if (store.users.some((u) => u.email.toLowerCase() === normalizedEmail)) {

@@ -7,6 +7,7 @@ import {
   validateRegisterInput,
   validateBuildingInput,
   validateCollegeInput,
+  getCollegeRegistrationDomainError,
 } from '../../src/lib/validators';
 
 describe('Validators', () => {
@@ -104,8 +105,51 @@ describe('Validators', () => {
 
   describe('validateCollegeInput', () => {
     it('validates college name and slug format', () => {
-      expect(validateCollegeInput({ name: 'NIT', slug: 'nit-delhi' }).isValid).toBe(true);
-      expect(validateCollegeInput({ name: 'NIT', slug: 'Invalid Slug!' }).isValid).toBe(false);
+      expect(
+        validateCollegeInput({ name: 'NIT', slug: 'nit-delhi', email_domain: 'nit.ac.in' }).isValid
+      ).toBe(true);
+      expect(
+        validateCollegeInput({
+          name: 'NIT',
+          slug: 'Invalid Slug!',
+          email_domain: 'nit.ac.in',
+        }).isValid
+      ).toBe(false);
+    });
+
+    it('requires comma-separated email domains without spaces or @', () => {
+      expect(
+        validateCollegeInput({ name: 'NIT', slug: 'nit', email_domain: '' }).errors.email_domain
+      ).toBe('At least one allowed email domain is required.');
+      expect(
+        validateCollegeInput({ name: 'NIT', slug: 'nit', email_domain: '@nit.ac.in' }).errors.email_domain
+      ).toBe('Enter comma-separated domains without spaces or @.');
+      expect(
+        validateCollegeInput({ name: 'NIT', slug: 'nit', email_domain: 'nit.ac.in, example.edu' })
+          .errors.email_domain
+      ).toBe('Enter comma-separated domains without spaces or @.');
+      expect(
+        validateCollegeInput({ name: 'NIT', slug: 'nit', email_domain: 'nit.ac.in,example.edu' })
+          .isValid
+      ).toBe(true);
+    });
+  });
+
+  describe('getCollegeRegistrationDomainError', () => {
+    it('blocks student registration when the college has no configured domains', () => {
+      expect(getCollegeRegistrationDomainError('student@example.edu', null, 'student')).toBe(
+        'This college is not accepting registrations yet.'
+      );
+    });
+
+    it('allows admins without configured domains but keeps configured domains enforced', () => {
+      expect(getCollegeRegistrationDomainError('admin@example.com', '', 'admin')).toBeNull();
+      expect(getCollegeRegistrationDomainError('admin@example.com', 'college.edu', 'admin')).toBe(
+        'Use an email address from your selected college domain.'
+      );
+      expect(
+        getCollegeRegistrationDomainError('admin@college.edu', 'college.edu', 'admin')
+      ).toBeNull();
     });
   });
 });

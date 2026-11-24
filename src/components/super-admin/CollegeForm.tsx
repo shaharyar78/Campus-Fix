@@ -122,11 +122,12 @@ export const CollegeForm: React.FC<CollegeFormProps> = ({
           onChange={(e) =>
             setFormData({
               ...formData,
-              email_domain: e.target.value.toLowerCase().replace(/^@/, ''),
+              email_domain: e.target.value.toLowerCase(),
             })
           }
           error={errors.email_domain}
-          helperText="Allowed domains for registration. Separate multiple domains with commas."
+          helperText="Required. Separate domains with commas; do not include spaces or @."
+          required
         />
       </div>
 

@@ -1,8 +1,17 @@
 import { type NextRequest } from 'next/server';
+import { buildContentSecurityPolicy, generateCspNonce } from '@/lib/contentSecurityPolicy';
 import { updateSession } from '@/lib/supabase/middleware';
 
 export async function proxy(request: NextRequest) {
-  return await updateSession(request);
+  const nonce = generateCspNonce();
+  const contentSecurityPolicy = buildContentSecurityPolicy(nonce);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', contentSecurityPolicy);
+
+  const response = await updateSession(request, requestHeaders);
+  response.headers.set('Content-Security-Policy', contentSecurityPolicy);
+  return response;
 }
 
 export const config = {

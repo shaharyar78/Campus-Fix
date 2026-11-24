@@ -21,6 +21,7 @@ import {
   mockUpdateUser,
   type MockQueryPayload,
 } from '@/lib/supabase/mockStore';
+import { getCollegeRegistrationDomainError } from '@/lib/validators';
 
 async function getCurrentSessionUser(request: Request) {
   const cookieStore = await cookies();
@@ -118,22 +119,20 @@ export async function POST(request: Request) {
           });
         }
 
-        if (college.email_domain) {
-          const domain = email.split('@')[1] || '';
-          const allowed = college.email_domain
-            .split(',')
-            .map((d) => d.trim().replace(/^@/, '').toLowerCase())
-            .filter(Boolean);
-          if (allowed.length > 0 && !allowed.includes(domain)) {
-            return NextResponse.json({
-              data: { user: null, session: null },
-              error: { message: 'Use an email address from your selected college domain' },
-            });
-          }
+        const requestedRole = meta.role === 'admin' ? 'admin' : 'student';
+        const domainError = getCollegeRegistrationDomainError(
+          email,
+          college.email_domain,
+          requestedRole
+        );
+        if (domainError) {
+          return NextResponse.json({
+            data: { user: null, session: null },
+            error: { message: domainError },
+          });
         }
 
         const id = randomUUID();
-        const requestedRole = meta.role === 'admin' ? 'admin' : 'student';
         const isStudent = requestedRole === 'student';
         const approvalStatus = isStudent ? 'approved' : 'pending';
         const fullName =

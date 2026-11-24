@@ -7,7 +7,7 @@ function normalizeCollegeInput(body: Record<string, unknown>) {
   return {
     name: typeof body.name === 'string' ? body.name.trim() : '',
     slug: typeof body.slug === 'string' ? body.slug.trim().toLowerCase() : '',
-    email_domain: typeof body.email_domain === 'string' ? body.email_domain.trim().toLowerCase().replace(/^@/, '') : '',
+    email_domain: typeof body.email_domain === 'string' ? body.email_domain.trim().toLowerCase() : '',
     address: typeof body.address === 'string' ? body.address.trim() : '',
   };
 }
@@ -16,10 +16,6 @@ function validateCollege(body: Record<string, unknown>) {
   const input = normalizeCollegeInput(body);
   const validation = validateCollegeInput(input);
   if (!validation.isValid) return { input, error: Object.values(validation.errors).join(' ') };
-  const emailDomains = input.email_domain.split(',').map((domain) => domain.trim()).filter(Boolean);
-  if (emailDomains.some((domain) => !/^(?=.{3,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(domain))) {
-    return { input, error: 'Enter a valid email domain, such as college.edu.' };
-  }
   return { input, error: null };
 }
 

@@ -191,6 +191,7 @@ as $$
 declare
   campus_id uuid;
   campus_email_domain text;
+  allowed_domains text[];
   requested_college_id uuid;
   requested_role public.user_role := 'student';
 begin
@@ -210,18 +211,24 @@ begin
     raise exception 'Select an active college before signing up';
   end if;
 
-  if campus_email_domain is not null and length(trim(campus_email_domain)) > 0 and not exists (
-    select 1
-    from unnest(string_to_array(lower(campus_email_domain), ',')) as allowed_domain(domain)
-    where lower(split_part(new.email, '@', 2)) = regexp_replace(trim(allowed_domain.domain), '^@', '')
-  ) then
-    raise exception 'Use an email address from your selected college domain';
-  end if;
-
   if new.raw_user_meta_data ->> 'role' = 'admin' then
     requested_role := 'admin';
   else
     requested_role := 'student';
+  end if;
+
+  select array_agg(lower(regexp_replace(trim(configured.domain_name), '^@', '')))
+  into allowed_domains
+  from unnest(string_to_array(coalesce(campus_email_domain, ''), ',')) as configured(domain_name)
+  where nullif(regexp_replace(trim(configured.domain_name), '^@', ''), '') is not null;
+
+  if requested_role = 'student' and coalesce(cardinality(allowed_domains), 0) = 0 then
+    raise exception 'This college is not accepting registrations yet.';
+  end if;
+
+  if coalesce(cardinality(allowed_domains), 0) > 0
+    and not (lower(split_part(coalesce(new.email, ''), '@', 2)) = any(allowed_domains)) then
+    raise exception 'Use an email address from your selected college domain';
   end if;
 
   insert into public.profiles (

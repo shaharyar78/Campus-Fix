@@ -1,9 +1,14 @@
 import { defineConfig } from '@playwright/test';
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || '';
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || '';
 const hasSupabase = Boolean(
-  process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  supabaseUrl &&
+    supabaseAnonKey &&
+    supabaseServiceRoleKey &&
+    !supabaseUrl.includes('placeholder.supabase.co') &&
+    supabaseAnonKey !== 'placeholder-anon-key'
 );
 
 export default defineConfig({
@@ -23,6 +28,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       ...process.env,
+      NODE_ENV: hasSupabase ? 'production' : 'development',
       ...(hasSupabase
         ? {}
         : {

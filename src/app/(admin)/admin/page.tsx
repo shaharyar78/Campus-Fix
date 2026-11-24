@@ -70,21 +70,36 @@ export default function AdminReportsPage() {
 
   async function processApproval(profileId: string, action: 'approve' | 'reject') {
     setApprovalLoading(true);
-    const response = await fetch('/api/approvals', {
-      method: 'PATCH',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', ...getClientAuthHeaders() },
-      body: JSON.stringify({ profile_id: profileId, action }),
-    });
-    if (response.ok) {
-      await fetchPendingAccounts();
-    } else {
-      setApprovalNotice('The account request could not be updated. Refresh and try again.');
+    try {
+      const response = await fetch('/api/approvals', {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', ...getClientAuthHeaders() },
+        body: JSON.stringify({ profile_id: profileId, action }),
+      });
+      if (response.ok) {
+        await fetchPendingAccounts();
+      } else {
+        setApprovalNotice('The account request could not be updated. Refresh and try again.');
+      }
+    } catch {
+      setApprovalNotice('Unable to reach the server. Please try again.');
+    } finally {
       setApprovalLoading(false);
     }
   }
 
-  const { reports, isLoading, updateReportStatus } = useReports(profile?.college_id);
+  const {
+    reports,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    total,
+    error: reportsError,
+    loadMore,
+    refreshReports,
+    updateReportStatus,
+  } = useReports(profile?.college_id);
 
   const filteredReports = reports.filter((report) => {
     if (statusFilter !== 'all' && report.status !== statusFilter) return false;
@@ -289,10 +304,22 @@ export default function AdminReportsPage() {
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
           <span className="tabular-nums">
-            Showing {filteredReports.length} of {reports.length} tickets
+            Showing {filteredReports.length} of {Math.max(reports.length, total)} tickets
           </span>
           <span>Update status inline or inspect ticket for progress notes</span>
         </div>
+
+        {reportsError && !isLoading && (
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+            role="alert"
+          >
+            <span>{reportsError}</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => void refreshReports()}>
+              Retry
+            </Button>
+          </div>
+        )}
 
         <ReportsTable
           reports={sortedReports}
@@ -304,6 +331,20 @@ export default function AdminReportsPage() {
             if (result.error) throw new Error(result.error);
           }}
         />
+
+        {hasMore && (
+          <div className="flex justify-center pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              isLoading={isLoadingMore}
+              onClick={() => void loadMore()}
+            >
+              Load more tickets
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

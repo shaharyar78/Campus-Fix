@@ -35,6 +35,7 @@ export interface Report {
   status: ReportStatus;
   upvote_count: number;
   photo_paths: string[];
+  photo_urls?: string[];
   assigned_to: string | null;
   resolved_at: string | null;
   created_at: string;
@@ -82,6 +83,7 @@ export interface CreateReportInput {
   situation?: SituationLevel;
   building_label?: string | null;
   photo_paths?: string[];
+  force?: boolean;
 }
 
 export interface ReportFilterOptions {
@@ -91,4 +93,5 @@ export interface ReportFilterOptions {
   search?: string;
   sort?: 'newest' | 'oldest' | 'upvotes';
   submitter_id?: string;
+  enabled?: boolean;
 }

@@ -3,6 +3,7 @@ import type { FilterOp, MockQueryPayload } from './mockStore';
 type QueryResult<T = unknown> = {
   data: T;
   error: { message: string; code?: string } | null;
+  count?: number | null;
 };
 
 type AuthUser = {
@@ -32,14 +33,19 @@ class MockQueryBuilder implements PromiseLike<QueryResult> {
       filters: [],
       order: null,
       limit: null,
+      range: null,
+      count: null,
       single: false,
       maybeSingle: false,
     };
   }
 
-  select(columns = '*'): this {
+  select(columns = '*', options?: { count?: 'exact' }): this {
     if (this.payload.action === 'select') {
       this.payload.columns = columns;
+      if (options?.count === 'exact') {
+        this.payload.count = 'exact';
+      }
     } else {
       this.payload.columns = columns;
       this.payload.returning = true;
@@ -99,6 +105,11 @@ class MockQueryBuilder implements PromiseLike<QueryResult> {
     return this;
   }
 
+  range(from: number, to: number): this {
+    this.payload.range = { from, to };
+    return this;
+  }
+
   single(): Promise<QueryResult> {
     this.payload.single = true;
     return this.executor(this.payload);
@@ -130,8 +141,8 @@ export interface MockAuthAdapter {
     options?: { emailRedirectTo?: string; data?: Record<string, unknown> };
   }) => Promise<{ data: { user: AuthUser | null; session: AuthSession | null }; error: { message: string } | null }>;
   signOut: () => Promise<{ error: { message: string } | null }>;
-  updateUser: (attrs: { password?: string }) => Promise<{ data: { user: AuthUser | null }; error: { message: string } | null }>;
-  resetPasswordForEmail: (email: string, opts?: { redirectTo?: string }) => Promise<{ data: Record<string, unknown>; error: { message: string } | null }>;
+  updateUser: (attrs: { password?: string }) => Promise<{ data: { user: AuthUser | null }; error: { message: string; status?: number } | null }>;
+  resetPasswordForEmail: (email: string, opts?: { redirectTo?: string }) => Promise<{ data: Record<string, unknown> | null; error: { message: string; status?: number } | null }>;
   exchangeCodeForSession: (code: string) => Promise<{ data: { session: AuthSession | null }; error: { message: string } | null }>;
   onAuthStateChange: (cb: AuthChangeCallback) => { data: { subscription: { unsubscribe: () => void } } };
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getAuthContext, apiError } from '@/lib/serverAuth';
+import { getAuthContext, apiError, requireJsonBody, requireSameOrigin } from '@/lib/serverAuth';
 import { createClient } from '@/lib/supabase/server';
-import { isRecord, validateCollegeInput } from '@/lib/validators';
+import { validateCollegeInput } from '@/lib/validators';
 
 function normalizeCollegeInput(body: Record<string, unknown>) {
   return {
@@ -24,63 +24,92 @@ function validateCollege(body: Record<string, unknown>) {
 }
 
 export async function GET(request: Request) {
-  const { user } = await getAuthContext(request);
-  if (!user) return apiError('UNAUTHORIZED', 'Authentication required', 401);
+  try {
+    const { user } = await getAuthContext(request);
+    if (!user) return apiError('UNAUTHORIZED', 'Authentication required', 401);
 
-  const supabase = await createClient(request);
-  const { data, error } = await supabase.from('colleges').select('*').eq('is_active', true).order('name');
-  if (error) return apiError('DATABASE_ERROR', 'Could not load colleges', 500);
-  return NextResponse.json({ data: data || [] });
+    const supabase = await createClient(request);
+    const { data, error } = await supabase.from('colleges').select('*').eq('is_active', true).order('name');
+    if (error) {
+      console.error('Colleges GET error:', error);
+      return apiError('DATABASE_ERROR', 'Could not load colleges', 500);
+    }
+    return NextResponse.json({ data: data || [] });
+  } catch (err) {
+    console.error('Colleges GET unexpected error:', err);
+    return apiError('INTERNAL_ERROR', 'Could not load colleges', 500);
+  }
 }
 
 export async function POST(request: Request) {
-  const { user, profile } = await getAuthContext(request);
-  if (!user || !profile) return apiError('UNAUTHORIZED', 'Authentication required', 401);
-  if (profile.role !== 'super_admin') return apiError('FORBIDDEN', 'Only super-admins can add colleges', 403);
+  try {
+    const originError = requireSameOrigin(request);
+    if (originError) return originError;
 
-  let payload: unknown;
-  try { payload = await request.json(); } catch { return apiError('BAD_REQUEST', 'Invalid JSON body', 400); }
-  if (!isRecord(payload)) return apiError('BAD_REQUEST', 'Invalid JSON body', 400);
-  const { input, error: validationError } = validateCollege(payload);
-  if (validationError) return apiError('VALIDATION_ERROR', validationError, 400);
+    const { user, profile } = await getAuthContext(request);
+    if (!user || !profile) return apiError('UNAUTHORIZED', 'Authentication required', 401);
+    if (profile.role !== 'super_admin') return apiError('FORBIDDEN', 'Only super-admins can add colleges', 403);
 
-  const supabase = await createClient(request);
-  const { data, error } = await supabase.from('colleges').insert({
-    name: input.name,
-    slug: input.slug,
-    email_domain: input.email_domain || null,
-    address: input.address || null,
-    is_active: true,
-  }).select('*').single();
-  if (error) {
-    if (error.code === '23505') return apiError('COLLEGE_EXISTS', 'A college with this slug already exists', 409);
-    return apiError('DATABASE_ERROR', 'Could not add this college', 500);
+    const { data: payload, errorResponse } = await requireJsonBody(request);
+    if (errorResponse || !payload) return errorResponse!;
+
+    const { input, error: validationError } = validateCollege(payload);
+    if (validationError) return apiError('VALIDATION_ERROR', validationError, 400);
+
+    const supabase = await createClient(request);
+    const { data, error } = await supabase.from('colleges').insert({
+      name: input.name,
+      slug: input.slug,
+      email_domain: input.email_domain || null,
+      address: input.address || null,
+      is_active: true,
+    }).select('*').single();
+    if (error) {
+      console.error('Colleges POST error:', error);
+      if (error.code === '23505') return apiError('COLLEGE_EXISTS', 'A college with this slug already exists', 409);
+      return apiError('DATABASE_ERROR', 'Could not add this college', 500);
+    }
+    return NextResponse.json({ data }, { status: 201 });
+  } catch (err) {
+    console.error('Colleges POST unexpected error:', err);
+    return apiError('INTERNAL_ERROR', 'Could not add this college', 500);
   }
-  return NextResponse.json({ data }, { status: 201 });
 }
 
 export async function PATCH(request: Request) {
-  const { user, profile } = await getAuthContext(request);
-  if (!user || !profile) return apiError('UNAUTHORIZED', 'Authentication required', 401);
-  if (profile.role !== 'super_admin') return apiError('FORBIDDEN', 'Only super-admins can update colleges', 403);
+  try {
+    const originError = requireSameOrigin(request);
+    if (originError) return originError;
 
-  let payload: unknown;
-  try { payload = await request.json(); } catch { return apiError('BAD_REQUEST', 'Invalid JSON body', 400); }
-  if (!isRecord(payload) || typeof payload.id !== 'string') return apiError('BAD_REQUEST', 'College ID is required', 400);
-  const { input, error: validationError } = validateCollege(payload);
-  if (validationError) return apiError('VALIDATION_ERROR', validationError, 400);
+    const { user, profile } = await getAuthContext(request);
+    if (!user || !profile) return apiError('UNAUTHORIZED', 'Authentication required', 401);
+    if (profile.role !== 'super_admin') return apiError('FORBIDDEN', 'Only super-admins can update colleges', 403);
 
-  const supabase = await createClient(request);
-  const { data, error } = await supabase.from('colleges').update({
-    name: input.name,
-    slug: input.slug,
-    email_domain: input.email_domain || null,
-    address: input.address || null,
-  }).eq('id', payload.id).select('*').maybeSingle();
-  if (error) {
-    if (error.code === '23505') return apiError('COLLEGE_EXISTS', 'A college with this slug already exists', 409);
-    return apiError('DATABASE_ERROR', 'Could not update this college', 500);
+    const { data: payload, errorResponse } = await requireJsonBody(request);
+    if (errorResponse || !payload) return errorResponse!;
+    if (typeof payload.id !== 'string' || !payload.id.trim()) {
+      return apiError('BAD_REQUEST', 'College ID is required', 400);
+    }
+
+    const { input, error: validationError } = validateCollege(payload);
+    if (validationError) return apiError('VALIDATION_ERROR', validationError, 400);
+
+    const supabase = await createClient(request);
+    const { data, error } = await supabase.from('colleges').update({
+      name: input.name,
+      slug: input.slug,
+      email_domain: input.email_domain || null,
+      address: input.address || null,
+    }).eq('id', payload.id).select('*').maybeSingle();
+    if (error) {
+      console.error('Colleges PATCH error:', error);
+      if (error.code === '23505') return apiError('COLLEGE_EXISTS', 'A college with this slug already exists', 409);
+      return apiError('DATABASE_ERROR', 'Could not update this college', 500);
+    }
+    if (!data) return apiError('NOT_FOUND', 'College not found', 404);
+    return NextResponse.json({ data });
+  } catch (err) {
+    console.error('Colleges PATCH unexpected error:', err);
+    return apiError('INTERNAL_ERROR', 'Could not update this college', 500);
   }
-  if (!data) return apiError('NOT_FOUND', 'College not found', 404);
-  return NextResponse.json({ data });
 }

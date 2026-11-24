@@ -1,21 +1,18 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { AlertCircle, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { CollegeSelect } from './CollegeSelect';
-import { validateRegisterInput } from '@/lib/validators';
+import { TURNSTILE_SITE_KEY, TurnstileWidget } from './TurnstileWidget';
+import { validatePassword, validateRegisterInput } from '@/lib/validators';
 import { useCollege } from '@/hooks/useCollege';
-import { createClient } from '@/lib/supabase/client';
 import { UserRole } from '@/types';
 
 export const RegisterForm: React.FC = () => {
-  const router = useRouter();
-  const { colleges } = useCollege();
-  const supabase = useMemo(() => createClient(), []);
+  const { colleges, error: collegesError, refreshColleges } = useCollege();
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -30,6 +27,8 @@ export const RegisterForm: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetTrigger, setCaptchaResetTrigger] = useState(0);
 
   const collegeId = colleges.some((college) => college.id === formData.college_id)
     ? formData.college_id
@@ -53,18 +52,39 @@ export const RegisterForm: React.FC = () => {
     setStatusMessage(null);
 
     const validation = validateRegisterInput({ ...formData, college_id: collegeId });
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) validation.errors.password = passwordError;
     if (emailDomainError) validation.errors.email = emailDomainError;
     validation.isValid = Object.keys(validation.errors).length === 0;
     if (!validation.isValid) {
       setErrors(validation.errors);
+      const order: Array<[string, string]> = [
+        ['college_id', 'college-select'],
+        ['full_name', 'register-full-name'],
+        ['email', 'register-email'],
+        ['password', 'register-password'],
+      ];
+      for (const [key, elementId] of order) {
+        if (validation.errors[key]) {
+          document.getElementById(elementId)?.focus();
+          break;
+        }
+      }
       return;
     }
+
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setGeneralError('Complete the security check before creating your account.');
+      return;
+    }
+
     setErrors({});
     setIsLoading(true);
 
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: formData.email.trim(),
@@ -72,39 +92,22 @@ export const RegisterForm: React.FC = () => {
           full_name: formData.full_name.trim(),
           college_id: collegeId,
           role: formData.role,
+          ...(captchaToken ? { captchaToken } : {}),
         }),
       });
 
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
       if (!response.ok) {
         setGeneralError(result.error || 'Registration failed. Please check your details.');
+        setCaptchaToken(null);
+        setCaptchaResetTrigger((n) => n + 1);
         return;
       }
 
-      if (result.isStudent) {
-        // Students are auto-approved: sign them in right away
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email.trim(),
-          password: formData.password,
-        });
-
-        if (signInError) {
-          // If browser client signIn had any issue, redirect to login with clean notification
-          router.push('/login?registered=1');
-          return;
-        }
-
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new Event('cf-auth-changed'));
-        }
-        router.push('/dashboard');
-        router.refresh();
-      } else {
-        // Administrator accounts require super-admin approval
-        setStatusMessage(
-          'Campus administrator account submitted. Your account is pending super-admin approval.'
-        );
-      }
+      setStatusMessage(result.message || 'Check your email to confirm your account.');
+      setFormData((current) => ({ ...current, password: '' }));
+      setCaptchaToken(null);
+      setCaptchaResetTrigger((n) => n + 1);
     } catch {
       setGeneralError('Could not connect to the registration service. Check your connection and retry.');
     } finally {
@@ -121,6 +124,18 @@ export const RegisterForm: React.FC = () => {
         >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" aria-hidden="true" />
           <span>{generalError}</span>
+        </div>
+      )}
+
+      {collegesError && (
+        <div
+          className="flex items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700"
+          role="alert"
+        >
+          <span>{collegesError}</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => void refreshColleges()}>
+            Retry
+          </Button>
         </div>
       )}
 
@@ -142,6 +157,7 @@ export const RegisterForm: React.FC = () => {
       />
 
       <Input
+        id="register-full-name"
         label="Full Name"
         type="text"
         placeholder="e.g. Rahul Sharma"
@@ -153,6 +169,7 @@ export const RegisterForm: React.FC = () => {
       />
 
       <Input
+        id="register-email"
         label="College Email Address"
         type="email"
         placeholder="rahul@campus.edu"
@@ -169,12 +186,14 @@ export const RegisterForm: React.FC = () => {
       />
 
       <Input
-        label="Password (min 6 characters)"
+        id="register-password"
+        label="Password"
         type={showPassword ? 'text' : 'password'}
         placeholder="••••••••"
         value={formData.password}
         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
         error={errors.password}
+        helperText="Minimum 8 characters."
         required
         disabled={isLoading}
         rightIcon={
@@ -215,9 +234,15 @@ export const RegisterForm: React.FC = () => {
           />
         </div>
         <p className="text-xs text-neutral-500">
-          Students get immediate access without waiting for approval; campus administrators require super-admin approval.
+          Students confirm via email before signing in; campus administrators also require super-admin approval.
         </p>
       </div>
+
+      <TurnstileWidget
+        onVerify={(token) => setCaptchaToken(token)}
+        onExpire={() => setCaptchaToken(null)}
+        resetTrigger={captchaResetTrigger}
+      />
 
       <Button type="submit" variant="primary" className="w-full" isLoading={isLoading} disabled={colleges.length === 0}>
         Create Campus Account

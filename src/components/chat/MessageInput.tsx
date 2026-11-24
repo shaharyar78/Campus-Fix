@@ -38,7 +38,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       className="flex items-end gap-2.5 border-t border-neutral-200 bg-white p-3.5"
     >
       <div className="relative flex-1">
+        <label htmlFor="chat-message-input" className="sr-only">
+          Message
+        </label>
         <textarea
+          id="chat-message-input"
           rows={1}
           placeholder={placeholder}
           value={text}

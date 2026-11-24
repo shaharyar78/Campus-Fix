@@ -36,9 +36,11 @@ const { createClient } = require('@supabase/supabase-js');
   const password = process.env.BOOTSTRAP_SUPER_ADMIN_PASSWORD;
   const { data: bootstrapCollege, error: collegeError } = await supabase.from('colleges').select('id').eq('slug', 'kcc').single();
   if (collegeError || !bootstrapCollege) throw collegeError || new Error('Run the college setup before provisioning the super-admin.');
-  const { data: users, error: listError } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  if (listError) throw listError;
-  const existing = users.users.find((user) => user.email?.toLowerCase() === email.toLowerCase());
+  const { data: existingProfile, error: lookupError } = await supabase.from('profiles').select('id').ilike('email', email).maybeSingle();
+  if (lookupError) throw lookupError;
+  const existingResp = existingProfile?.id ? await supabase.auth.admin.getUserById(existingProfile.id) : null;
+  if (existingResp?.error) throw existingResp.error;
+  const existing = existingResp?.data?.user || null;
   const authResult = existing
     ? await supabase.auth.admin.updateUserById(existing.id, { email, password, email_confirm: true, user_metadata: { ...existing.user_metadata, username, full_name: username } })
     : await supabase.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { username, full_name: username, college_id: bootstrapCollege.id } });

@@ -13,23 +13,30 @@ export function useBuildings(collegeId?: string | null) {
   const fetchBuildings = useCallback(async () => {
     if (!collegeId) {
       setBuildings([]);
+      setError(null);
       setIsLoading(false);
       return;
     }
     setIsLoading(true);
     setError(null);
-    const { data, error: queryError } = await supabase
-      .from('buildings')
-      .select('*')
-      .eq('college_id', collegeId)
-      .order('name');
-    if (queryError) {
+    try {
+      const { data, error: queryError } = await supabase
+        .from('buildings')
+        .select('*')
+        .eq('college_id', collegeId)
+        .order('name');
+      if (queryError) {
+        setBuildings([]);
+        setError(queryError.message);
+      } else {
+        setBuildings((data || []) as Building[]);
+      }
+    } catch (err) {
       setBuildings([]);
-      setError(queryError.message);
-    } else {
-      setBuildings((data || []) as Building[]);
+      setError(err instanceof Error ? err.message : 'Could not load campus buildings.');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, [collegeId, supabase]);
 
   useEffect(() => { void Promise.resolve().then(fetchBuildings); }, [fetchBuildings]);
@@ -54,10 +61,14 @@ export function useBuildings(collegeId?: string | null) {
 
   const deleteBuilding = async (id: string) => {
     if (!collegeId) return { error: 'A college workspace is required.' };
-    const { error: deleteError } = await supabase.from('buildings').delete().eq('id', id).eq('college_id', collegeId);
-    if (deleteError) return { error: deleteError.message };
-    setBuildings((current) => current.filter((building) => building.id !== id));
-    return { error: null };
+    try {
+      const { error: deleteError } = await supabase.from('buildings').delete().eq('id', id).eq('college_id', collegeId);
+      if (deleteError) return { error: deleteError.message };
+      setBuildings((current) => current.filter((building) => building.id !== id));
+      return { error: null };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Could not delete this building.' };
+    }
   };
 
   return { buildings, isLoading, error, refreshBuildings: fetchBuildings, addBuilding: saveBuilding, updateBuilding: saveBuilding, deleteBuilding };

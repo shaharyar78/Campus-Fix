@@ -1,5 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { isSupabaseConfigured, getSupabaseUrl, getSupabaseAnonKey } from './config';
+import { validatePassword } from '@/lib/validators';
 import {
   createMockClientWithAdapter,
   type AuthChangeCallback,
@@ -98,10 +99,22 @@ function getMockBrowserClient() {
       return result;
     },
     async updateUser(attrs) {
+      const password = typeof attrs?.password === 'string' ? attrs.password : '';
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        return { data: { user: null }, error: { message: passwordError, status: 422 } };
+      }
       return postMock({ kind: 'auth', action: 'updateUser', params: attrs });
     },
     async resetPasswordForEmail(email, opts) {
-      return postMock({ kind: 'auth', action: 'resetPasswordForEmail', params: { email, opts } });
+      const normalized = typeof email === 'string' ? email.trim() : '';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+        return {
+          data: null,
+          error: { message: 'Enter a valid email address.', status: 400 },
+        };
+      }
+      return postMock({ kind: 'auth', action: 'resetPasswordForEmail', params: { email: normalized, opts } });
     },
     async exchangeCodeForSession() {
       return { data: { session: null }, error: null };
@@ -129,16 +142,14 @@ function createRealBrowserClientInternal() {
   const supabaseAnonKey = getSupabaseAnonKey();
   const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
 
+  const allowIframeEmbed = process.env.NEXT_PUBLIC_ALLOW_IFRAME_EMBED === 'true';
+
   return createBrowserClient(supabaseUrl, supabaseAnonKey, {
     isSingleton: true,
-    ...(isHttps
-      ? {
-          cookieOptions: {
-            sameSite: 'none' as const,
-            secure: true,
-          },
-        }
-      : {}),
+    cookieOptions:
+      allowIframeEmbed && isHttps
+        ? { sameSite: 'none' as const, secure: true }
+        : { sameSite: 'lax' as const, ...(isHttps ? { secure: true } : {}) },
   });
 }
 

@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
+  MIN_PASSWORD_LENGTH,
+  validatePassword,
   validateReportInput,
   validateLoginInput,
   validateRegisterInput,
@@ -8,7 +10,21 @@ import {
 } from '../../src/lib/validators';
 
 describe('Validators', () => {
-  it('accepts a valid student registration with a college email', () => {
+  it('accepts a valid student registration with a college email and enforces minimum 8-char password', () => {
+    expect(MIN_PASSWORD_LENGTH).toBe(8);
+    expect(validatePassword('1234567')).toBe('Use a password with at least 8 characters.');
+    expect(validatePassword('12345678')).toBeNull();
+
+    const shortPass = validateRegisterInput({
+      full_name: 'Shaharyar Khan',
+      email: 'student@kcc.edu',
+      password: '1234567',
+      role: 'student',
+      college_id: 'kcc-college-id',
+    });
+    expect(shortPass.isValid).toBe(false);
+    expect(shortPass.errors.password).toBe('Use a password with at least 8 characters.');
+
     const result = validateRegisterInput({
       full_name: 'Shaharyar Khan',
       email: 'student@kcc.edu',
@@ -64,15 +80,18 @@ describe('Validators', () => {
   });
 
   describe('validateLoginInput', () => {
-    it('validates email and password', () => {
+    it('validates email/username and requires non-empty password', () => {
       const valid = validateLoginInput({ email: 'user@campus.edu', password: 'password123' });
       expect(valid.isValid).toBe(true);
+
+      const validShortLegacy = validateLoginInput({ email: 'user@campus.edu', password: '123' });
+      expect(validShortLegacy.isValid).toBe(true);
 
       const invalidEmail = validateLoginInput({ email: 'bad-email', password: 'password123' });
       expect(invalidEmail.isValid).toBe(false);
 
-      const invalidPass = validateLoginInput({ email: 'user@campus.edu', password: '123' });
-      expect(invalidPass.isValid).toBe(false);
+      const emptyPass = validateLoginInput({ email: 'user@campus.edu', password: '' });
+      expect(emptyPass.isValid).toBe(false);
     });
   });
 

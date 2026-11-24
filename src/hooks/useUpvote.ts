@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, getClientAuthHeaders } from '@/lib/supabase/client';
 
 export function useUpvote(
   reportId: string,
@@ -69,10 +69,21 @@ export function useUpvote(
     }
 
     try {
-      const result = previousState
-        ? await supabase.from('report_upvotes').delete().match({ report_id: reportId, user_id: userId })
-        : await supabase.from('report_upvotes').insert([{ report_id: reportId, user_id: userId }]);
-      if (result.error) throw result.error;
+      const response = await fetch(`/api/reports/${encodeURIComponent(reportId)}/upvote`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: getClientAuthHeaders(),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.data) {
+        throw new Error(result.error?.message || 'Could not update vote');
+      }
+      if (typeof result.data.upvote_count === 'number') {
+        setUpvotes(result.data.upvote_count);
+      }
+      if (typeof result.data.has_upvoted === 'boolean') {
+        setHasUpvoted(result.data.has_upvoted);
+      }
     } catch {
       // Revert if error
       setUpvotes(previousCount);

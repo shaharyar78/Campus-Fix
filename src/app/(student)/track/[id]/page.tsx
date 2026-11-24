@@ -8,27 +8,55 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { StatusTimeline } from '@/components/report/StatusTimeline';
-import { useReports } from '@/hooks/useReports';
 import { useUpvote } from '@/hooks/useUpvote';
 import { getStatusConfig, getCategoryConfig, formatDate } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
+import { isSafeDisplayImageUrl } from '@/lib/imageSecurity';
+import { createClient, getClientAuthHeaders } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/useUser';
-import { ReportUpdate } from '@/types';
+import { Report, ReportUpdate } from '@/types';
 
 export default function ReportDetailPage() {
   const params = useParams();
   const idOrTracking = (params?.id as string) || '';
 
-  const { reports, isLoading } = useReports();
+  const [report, setReport] = React.useState<Report | null>(null);
+  const [isLoading, setIsLoading] = React.useState(Boolean(idOrTracking));
+  const [loadError, setLoadError] = React.useState<string | null>(null);
   const { user } = useUser();
-  const supabase = createClient();
+  const supabase = React.useMemo(() => createClient(), []);
   const [updates, setUpdates] = React.useState<ReportUpdate[]>([]);
 
-  const report = reports.find(
-    (r) =>
-      r.id.toLowerCase() === idOrTracking.toLowerCase() ||
-      r.tracking_id.toLowerCase() === idOrTracking.toLowerCase()
-  );
+  const fetchReport = React.useCallback(async () => {
+    if (!idOrTracking) return;
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const response = await fetch(`/api/reports/${encodeURIComponent(idOrTracking)}`, {
+        credentials: 'same-origin',
+        headers: getClientAuthHeaders(),
+      });
+      if (response.status === 404) {
+        setReport(null);
+        return;
+      }
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setReport(null);
+        setLoadError(json.error?.message || 'Unable to load report details.');
+        return;
+      }
+      setReport((json.data as Report) || null);
+    } catch {
+      setReport(null);
+      setLoadError('Unable to reach the server. Check your connection and retry.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [idOrTracking]);
+
+  React.useEffect(() => {
+    void Promise.resolve().then(fetchReport);
+  }, [fetchReport]);
 
   const { upvotes, hasUpvoted, isMutating, toggleUpvote } = useUpvote(
     report?.id || '',
@@ -68,6 +96,26 @@ export default function ReportDetailPage() {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center" role="alert">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600">
+          <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+        </div>
+        <h2 className="font-display text-xl font-semibold text-neutral-950">Could Not Load Report</h2>
+        <p className="mt-2 text-sm text-neutral-600">{loadError}</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Button type="button" variant="primary" onClick={() => void fetchReport()}>
+            Retry
+          </Button>
+          <Link href="/track">
+            <Button variant="outline">Back to Tracking</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (!report) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
@@ -79,7 +127,7 @@ export default function ReportDetailPage() {
           No maintenance report was found with identifier{' '}
           <span className="font-mono font-semibold text-neutral-900">{idOrTracking}</span>.
         </p>
-        <div className="mt-6 flex justify-center gap-3">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href="/track">
             <Button variant="primary">Search Again</Button>
           </Link>
@@ -93,10 +141,13 @@ export default function ReportDetailPage() {
 
   const statusConfig = getStatusConfig(report.status);
   const categoryConfig = getCategoryConfig(report.category);
+  const displayPhotos = (
+    report.photo_urls && report.photo_urls.length > 0 ? report.photo_urls : report.photo_paths || []
+  ).filter(isSafeDisplayImageUrl);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Link
           href="/track"
           className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-950"
@@ -129,7 +180,7 @@ export default function ReportDetailPage() {
               </p>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex flex-wrap shrink-0 items-center gap-2">
               <Button
                 variant={hasUpvoted ? 'primary' : 'outline'}
                 size="md"
@@ -207,13 +258,13 @@ export default function ReportDetailPage() {
           </div>
 
           {/* Photo gallery */}
-          {report.photo_paths && report.photo_paths.length > 0 && (
+          {displayPhotos.length > 0 && (
             <div>
               <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-neutral-500">
                 Attached Photos
               </h4>
               <div className="flex flex-wrap gap-3">
-                {report.photo_paths.map((p, idx) => (
+                {displayPhotos.map((p, idx) => (
                   <div
                     key={idx}
                     className="relative h-28 w-28 overflow-hidden rounded-lg border border-neutral-200"

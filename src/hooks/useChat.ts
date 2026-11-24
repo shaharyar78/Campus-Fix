@@ -2,18 +2,35 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ChatMessage } from '@/types';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, getClientAuthHeaders } from '@/lib/supabase/client';
+
+const CHAT_PAGE_SIZE = 20;
 
 export function useChat(reportId?: string | null, collegeId?: string | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const supabase = useMemo(() => createClient(), []);
 
+  const buildChatQuery = useCallback(
+    (offset: number) => {
+      const params = new URLSearchParams();
+      params.set('limit', String(CHAT_PAGE_SIZE));
+      params.set('offset', String(offset));
+      if (collegeId) params.set('college_id', collegeId);
+      if (reportId) params.set('report_id', reportId);
+      return params.toString();
+    },
+    [collegeId, reportId]
+  );
+
   const fetchMessages = useCallback(async () => {
     if (!collegeId) {
       setMessages([]);
+      setHasMore(false);
       setError(null);
       setIsLoading(false);
       return;
@@ -21,23 +38,50 @@ export function useChat(reportId?: string | null, collegeId?: string | null) {
     setIsLoading(true);
     setError(null);
     try {
-      let query = supabase
-        .from('messages')
-        .select('*, sender:profiles!sender_id(id, full_name, email, role)')
-        .order('created_at', { ascending: true });
-      query = reportId ? query.eq('report_id', reportId) : query.is('report_id', null);
-      if (collegeId) query = query.eq('college_id', collegeId);
-
-      const { data, error: queryError } = await query;
-      if (queryError) throw queryError;
-      setMessages((data || []) as unknown as ChatMessage[]);
+      const response = await fetch(`/api/chat?${buildChatQuery(0)}`, {
+        credentials: 'same-origin',
+        headers: getClientAuthHeaders(),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error?.message || 'Could not load messages.');
+      }
+      setMessages((result.data || []) as ChatMessage[]);
+      setHasMore(Boolean(result.pagination?.hasMore));
     } catch (err) {
       setMessages([]);
+      setHasMore(false);
       setError(err instanceof Error ? err.message : 'Could not load messages.');
     } finally {
       setIsLoading(false);
     }
-  }, [reportId, collegeId, supabase]);
+  }, [collegeId, buildChatQuery]);
+
+  const loadOlder = useCallback(async () => {
+    if (!collegeId || !hasMore || isLoadingMore) return;
+    setIsLoadingMore(true);
+    try {
+      const response = await fetch(`/api/chat?${buildChatQuery(messages.length)}`, {
+        credentials: 'same-origin',
+        headers: getClientAuthHeaders(),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error?.message || 'Could not load older messages.');
+      }
+      const older = (result.data || []) as ChatMessage[];
+      setMessages((current) => {
+        const existingIds = new Set(current.map((item) => item.id));
+        const uniqueOlder = older.filter((item) => !existingIds.has(item.id));
+        return [...uniqueOlder, ...current];
+      });
+      setHasMore(Boolean(result.pagination?.hasMore));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load older messages.');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [collegeId, hasMore, isLoadingMore, buildChatQuery, messages.length]);
 
   useEffect(() => {
     void Promise.resolve().then(fetchMessages);
@@ -69,18 +113,24 @@ export function useChat(reportId?: string | null, collegeId?: string | null) {
     setIsSending(true);
     setError(null);
     try {
-      const { data, error: insertError } = await supabase
-        .from('messages')
-        .insert([{
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', ...getClientAuthHeaders() },
+        body: JSON.stringify({
           college_id: collegeId,
           report_id: reportId || null,
-          sender_id: senderId,
           body: body.trim(),
-        }])
-        .select('*, sender:profiles!sender_id(id, full_name, email, role)')
-        .single();
-      if (insertError) throw insertError;
-      setMessages((current) => current.some((item) => item.id === data.id) ? current : [...current, data as unknown as ChatMessage]);
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.data) {
+        throw new Error(result.error?.message || 'Could not send this message.');
+      }
+      const saved = result.data as ChatMessage;
+      setMessages((current) =>
+        current.some((item) => item.id === saved.id) ? current : [...current, saved]
+      );
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not send this message.';
@@ -91,5 +141,15 @@ export function useChat(reportId?: string | null, collegeId?: string | null) {
     }
   };
 
-  return { messages, isLoading, isSending, error, sendMessage, refreshMessages: fetchMessages };
+  return {
+    messages,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    isSending,
+    error,
+    sendMessage,
+    loadOlder,
+    refreshMessages: fetchMessages,
+  };
 }

@@ -44,6 +44,11 @@ export const LoginForm: React.FC = () => {
     const validation = validateLoginInput(formData);
     if (!validation.isValid) {
       setErrors(validation.errors);
+      if (validation.errors.email) {
+        document.getElementById('login-identifier')?.focus();
+      } else if (validation.errors.password) {
+        document.getElementById('login-password')?.focus();
+      }
       return;
     }
     setErrors({});
@@ -128,6 +133,7 @@ export const LoginForm: React.FC = () => {
         </p>
       )}
       <Input
+        id="login-identifier"
         label="Username or college email"
         type="text"
         placeholder="username or you@college.edu"
@@ -139,6 +145,7 @@ export const LoginForm: React.FC = () => {
         autoComplete="username"
       />
       <Input
+        id="login-password"
         label="Password"
         type={showPassword ? 'text' : 'password'}
         placeholder="••••••••"

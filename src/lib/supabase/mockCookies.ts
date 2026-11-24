@@ -1,21 +1,20 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { NextResponse } from 'next/server';
 
 export const MOCK_SESSION_COOKIE = 'cf_mock_user_id';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-const globalForSecret = globalThis as unknown as {
-  __campusfixMockSessionSecret?: string;
-};
-
 function getMockSessionSecret(): string {
-  const configured = process.env.MOCK_SESSION_SECRET?.trim();
-  if (configured) return configured;
-
-  if (!globalForSecret.__campusfixMockSessionSecret) {
-    globalForSecret.__campusfixMockSessionSecret = randomBytes(32).toString('hex');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Mock session cookies are disabled in production.');
   }
-  return globalForSecret.__campusfixMockSessionSecret;
+
+  const configured = process.env.MOCK_SESSION_SECRET?.trim();
+  if (!configured) {
+    throw new Error('MOCK_SESSION_SECRET must be configured when using development mock mode.');
+  }
+
+  return configured;
 }
 
 export function signMockSessionToken(userId: string): string {
@@ -75,6 +74,7 @@ export function isHttpsRequest(request: Request): boolean {
 }
 
 function serializeMockCookie(value: string, maxAgeSeconds: number, isHttps: boolean): string {
+  const allowIframeEmbed = process.env.ALLOW_IFRAME_EMBED === 'true';
   const parts = [
     `${MOCK_SESSION_COOKIE}=${value}`,
     'Path=/',
@@ -82,10 +82,11 @@ function serializeMockCookie(value: string, maxAgeSeconds: number, isHttps: bool
     'HttpOnly',
   ];
 
-  if (isHttps) {
+  if (allowIframeEmbed && isHttps) {
     parts.push('Secure', 'SameSite=None', 'Partitioned');
   } else {
     parts.push('SameSite=Lax');
+    if (isHttps) parts.push('Secure');
   }
 
   return parts.join('; ');
@@ -114,10 +115,15 @@ export function isTrustedSameOriginRequest(request: Request): boolean {
     return true;
   }
 
+  const secFetchSite = request.headers.get('sec-fetch-site')?.toLowerCase();
+  if (secFetchSite === 'cross-site') {
+    return false;
+  }
+
   const origin = request.headers.get('origin');
   const expectedHost = (
     request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() ||
-    request.headers.get('host') ||
+    request.headers.get('host')?.split(',')[0]?.trim() ||
     (() => {
       try {
         return new URL(request.url).host;
@@ -130,26 +136,26 @@ export function isTrustedSameOriginRequest(request: Request): boolean {
   if (origin) {
     try {
       const originHost = new URL(origin).host.toLowerCase();
-      if (!expectedHost || originHost !== expectedHost) {
-        return false;
-      }
-      return true;
+      return Boolean(expectedHost && originHost === expectedHost);
     } catch {
       return false;
     }
-  }
-
-  if (request.headers.get('x-requested-with')) {
-    return true;
   }
 
   const referer = request.headers.get('referer');
-  if (referer && expectedHost) {
+  if (referer) {
     try {
-      return new URL(referer).host.toLowerCase() === expectedHost;
+      const refererHost = new URL(referer).host.toLowerCase();
+      return Boolean(expectedHost && refererHost === expectedHost);
     } catch {
       return false;
     }
+  }
+
+  const cookieHeader = request.headers.get('cookie') || '';
+  const hasSessionCookie = cookieHeader.includes(MOCK_SESSION_COOKIE) || /\bsb-[^=]+=/i.test(cookieHeader);
+  if (hasSessionCookie && !request.headers.get('authorization')) {
+    return false;
   }
 
   return true;

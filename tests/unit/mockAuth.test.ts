@@ -4,6 +4,8 @@ import {
   executeMockQuery,
   getMockStore,
   hashMockPassword,
+  mockResetPasswordForEmail,
+  mockUpdateUser,
   resetMockStore,
   verifyMockPassword,
 } from '../../src/lib/supabase/mockStore';
@@ -16,6 +18,7 @@ import {
 
 describe('Mock Auth and Session Security', () => {
   beforeEach(() => {
+    process.env.MOCK_SESSION_SECRET = 'unit-test-mock-session-secret';
     resetMockStore();
   });
 
@@ -86,5 +89,43 @@ describe('Mock Auth and Session Security', () => {
       },
     });
     expect(isTrustedSameOriginRequest(crossOriginReq)).toBe(false);
+  });
+
+  it('validates email format and simulates 429 rate limiting after 3 reset requests/minute', () => {
+    const invalid = mockResetPasswordForEmail('not-an-email');
+    expect(invalid.data).toBeNull();
+    expect(invalid.error?.status).toBe(400);
+
+    const t0 = 1_700_000_000_000;
+    expect(mockResetPasswordForEmail('aarav.sharma@gmail.com', t0)).toEqual({ data: {}, error: null });
+    expect(mockResetPasswordForEmail('aarav.sharma@gmail.com', t0 + 10_000)).toEqual({ data: {}, error: null });
+    expect(mockResetPasswordForEmail('aarav.sharma@gmail.com', t0 + 20_000)).toEqual({ data: {}, error: null });
+
+    const limited = mockResetPasswordForEmail('aarav.sharma@gmail.com', t0 + 30_000);
+    expect(limited.data).toBeNull();
+    expect(limited.error?.status).toBe(429);
+
+    // Separate email has independent limit
+    expect(mockResetPasswordForEmail('other@gmail.com', t0 + 30_000)).toEqual({ data: {}, error: null });
+
+    // Window resets after 60 seconds
+    expect(mockResetPasswordForEmail('aarav.sharma@gmail.com', t0 + 61_000)).toEqual({ data: {}, error: null });
+  });
+
+  it('enforces shared password rules in mockUpdateUser', () => {
+    const store = getMockStore();
+    const userId = store.profiles[0].id;
+
+    const missingSession = mockUpdateUser(null, { password: 'valid-password-8' });
+    expect(missingSession.error?.status).toBe(401);
+
+    const tooShort = mockUpdateUser(userId, { password: 'short' });
+    expect(tooShort.data.user).toBeNull();
+    expect(tooShort.error?.status).toBe(422);
+
+    const updated = mockUpdateUser(userId, { password: 'new-valid-password' });
+    expect(updated.error).toBeNull();
+    expect(updated.data.user?.id).toBe(userId);
+    expect(authenticateMockUser('aarav.sharma@gmail.com', 'new-valid-password').error).toBeNull();
   });
 });

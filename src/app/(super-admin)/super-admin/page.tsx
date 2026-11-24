@@ -18,10 +18,12 @@ export default function SuperAdminOverviewPage() {
     selectedCollegeId,
     setSelectedCollegeId,
     isLoading,
+    error: collegesError,
+    refreshColleges,
     addCollege,
     updateCollege,
   } = useCollege();
-  const { reports } = useReports();
+  const { reports, error: reportsError, refreshReports } = useReports();
   const [formMode, setFormMode] = useState<'add' | 'edit' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -71,16 +73,21 @@ export default function SuperAdminOverviewPage() {
 
   async function processApproval(profileId: string, action: 'approve' | 'reject') {
     setApprovalLoading(true);
-    const response = await fetch('/api/approvals', {
-      method: 'PATCH',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', ...getClientAuthHeaders() },
-      body: JSON.stringify({ profile_id: profileId, action }),
-    });
-    if (response.ok) {
-      await fetchPendingAccounts();
-    } else {
-      setApprovalNotice('The account request could not be updated. Refresh and try again.');
+    try {
+      const response = await fetch('/api/approvals', {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', ...getClientAuthHeaders() },
+        body: JSON.stringify({ profile_id: profileId, action }),
+      });
+      if (response.ok) {
+        await fetchPendingAccounts();
+      } else {
+        setApprovalNotice('The account request could not be updated. Refresh and try again.');
+      }
+    } catch {
+      setApprovalNotice('Unable to reach the server. Please try again.');
+    } finally {
       setApprovalLoading(false);
     }
   }
@@ -336,6 +343,26 @@ export default function SuperAdminOverviewPage() {
             Onboarded Colleges ({colleges.length})
           </h2>
         </div>
+
+        {(collegesError || reportsError) && (
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+            role="alert"
+          >
+            <span>{collegesError || reportsError}</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (collegesError) void refreshColleges();
+                if (reportsError) void refreshReports();
+              }}
+            >
+              Retry
+            </Button>
+          </div>
+        )}
 
         <CollegeTable
           colleges={colleges}

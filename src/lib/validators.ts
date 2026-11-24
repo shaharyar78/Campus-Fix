@@ -58,6 +58,15 @@ export function validateReportInput(data: {
   };
 }
 
+export const MIN_PASSWORD_LENGTH = 8;
+
+export function validatePassword(password: string): string | null {
+  if (!password || password.length < MIN_PASSWORD_LENGTH) {
+    return `Use a password with at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+  return null;
+}
+
 export function validateLoginInput(data: {
   email?: string;
   password?: string;
@@ -69,8 +78,8 @@ export function validateLoginInput(data: {
     errors.email = 'Enter a valid email address or username.';
   }
 
-  if (!data.password || data.password.length < 6) {
-    errors.password = 'Password must be at least 6 characters.';
+  if (!data.password || data.password.length === 0) {
+    errors.password = 'Enter your password.';
   }
 
   return {
@@ -96,8 +105,9 @@ export function validateRegisterInput(data: {
     errors.email = 'Please provide a valid email address.';
   }
 
-  if (!data.password || data.password.length < 6) {
-    errors.password = 'Password must be at least 6 characters.';
+  const passwordError = validatePassword(data.password || '');
+  if (passwordError) {
+    errors.password = passwordError;
   }
 
   if (data.role && !['student', 'admin', 'super_admin'].includes(data.role)) {

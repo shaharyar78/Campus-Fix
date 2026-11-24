@@ -10,22 +10,32 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useChat } from '@/hooks/useChat';
 import { useUser } from '@/hooks/useUser';
 import { useCollege } from '@/hooks/useCollege';
+import { getClientAuthHeaders } from '@/lib/supabase/client';
 
 function ChatContent() {
   const searchParams = useSearchParams();
   const reportId = searchParams.get('report');
 
-  const { profile } = useUser();
-  const { colleges, currentCollege, selectedCollegeId, setSelectedCollegeId } = useCollege(
-    profile?.college_id
-  );
+  const { profile, isLoading: userLoading, error: userError, refreshUser } = useUser();
+  const {
+    colleges,
+    currentCollege,
+    selectedCollegeId,
+    setSelectedCollegeId,
+    isLoading: collegesLoading,
+    error: collegesError,
+    refreshColleges,
+  } = useCollege(profile?.college_id);
   const isSuperAdmin = profile?.role === 'super_admin';
   const chatCollegeId = isSuperAdmin ? selectedCollegeId : profile?.college_id;
 
   useEffect(() => {
     if (!isSuperAdmin || !reportId) return;
     let active = true;
-    void fetch(`/api/reports/${encodeURIComponent(reportId)}`)
+    void fetch(`/api/reports/${encodeURIComponent(reportId)}`, {
+      credentials: 'same-origin',
+      headers: getClientAuthHeaders(),
+    })
       .then((response) => (response.ok ? response.json() : null))
       .then((result) => {
         if (active && typeof result?.data?.college_id === 'string') {
@@ -38,7 +48,24 @@ function ChatContent() {
     };
   }, [isSuperAdmin, reportId, setSelectedCollegeId]);
 
-  const { messages, isLoading, isSending, error, sendMessage } = useChat(reportId, chatCollegeId);
+  const {
+    messages,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    isSending,
+    error,
+    sendMessage,
+    loadOlder,
+    refreshMessages,
+  } = useChat(reportId, chatCollegeId);
+
+  const combinedError = userError || collegesError || error;
+  const handleRetry = () => {
+    if (userError) void refreshUser();
+    if (collegesError) void refreshColleges();
+    if (!userError && !collegesError) void refreshMessages();
+  };
 
   const handleSendMessage = async (text: string) => {
     return await sendMessage(text, profile?.id);
@@ -91,7 +118,16 @@ function ChatContent() {
           )}
         </CardHeader>
 
-        <MessageList messages={messages} currentUserId={profile?.id} isLoading={isLoading} />
+        <MessageList
+          messages={messages}
+          currentUserId={profile?.id}
+          isLoading={userLoading || collegesLoading || isLoading}
+          error={combinedError}
+          onRetry={handleRetry}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
+          onLoadOlder={() => void loadOlder()}
+        />
 
         {chatCollegeId ? (
           <MessageInput
@@ -99,18 +135,28 @@ function ChatContent() {
             isSending={isSending}
             placeholder="Ask a question or share maintenance details..."
           />
-        ) : (
+        ) : !userLoading && !collegesLoading ? (
           <p
             role="status"
             className="border-t border-neutral-200 bg-neutral-50 px-4 py-4 text-center text-sm text-neutral-600"
           >
             Select an active campus to open its chat.
           </p>
-        )}
-        {error && (
-          <p role="alert" className="border-t border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700">
-            {error}
-          </p>
+        ) : null}
+        {combinedError && messages.length > 0 && (
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-2 border-t border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700"
+          >
+            <span>{combinedError}</span>
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="font-semibold underline hover:text-rose-900"
+            >
+              Retry
+            </button>
+          </div>
         )}
       </Card>
     </div>

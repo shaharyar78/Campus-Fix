@@ -17,9 +17,15 @@ import { Skeleton } from '@/components/ui/Skeleton';
 export default function BuildingManagementPage() {
   const { profile } = useUser();
   const { currentCollege } = useCollege(profile?.college_id);
-  const { buildings, isLoading, addBuilding, updateBuilding, deleteBuilding } = useBuildings(
-    profile?.college_id
-  );
+  const {
+    buildings,
+    isLoading,
+    error: buildingsError,
+    refreshBuildings,
+    addBuilding,
+    updateBuilding,
+    deleteBuilding,
+  } = useBuildings(profile?.college_id);
 
   const [isAdding, setIsAdding] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -148,6 +154,16 @@ export default function BuildingManagementPage() {
             {Array.from({ length: 4 }, (_, index) => (
               <Skeleton key={index} className="h-28" />
             ))}
+          </div>
+        ) : buildingsError ? (
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700"
+            role="alert"
+          >
+            <span>{buildingsError}</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => void refreshBuildings()}>
+              Retry
+            </Button>
           </div>
         ) : buildings.length === 0 ? (
           <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-12 text-center">

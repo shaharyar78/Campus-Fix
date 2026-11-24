@@ -32,6 +32,8 @@ export const CollegeSelect: React.FC<CollegeSelectProps> = ({
         <select
           id="college-select"
           aria-label="Select College"
+          aria-invalid={!!error}
+          aria-describedby={error ? 'college-select-error' : 'college-select-helper'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           required={required}
@@ -54,11 +56,11 @@ export const CollegeSelect: React.FC<CollegeSelectProps> = ({
       </div>
 
       {error && (
-        <p className="text-xs text-rose-600" role="alert">
+        <p id="college-select-error" className="text-xs text-rose-600" role="alert">
           {error}
         </p>
       )}
-      <p className="text-xs text-neutral-500">
+      <p id="college-select-helper" className="text-xs text-neutral-500">
         Issues and buildings are scoped to your selected campus.
       </p>
     </div>

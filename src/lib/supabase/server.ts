@@ -23,6 +23,8 @@ import {
   authenticateMockUser,
   executeMockQuery,
   getMockAuthUser,
+  mockResetPasswordForEmail,
+  mockUpdateUser,
 } from './mockStore';
 
 function createMockServerClient(mockUserId?: string | null, rawToken?: string | null) {
@@ -59,11 +61,11 @@ function createMockServerClient(mockUserId?: string | null, rawToken?: string | 
     async signOut() {
       return { error: null };
     },
-    async updateUser() {
-      return { data: { user: getUserFromStore() }, error: null };
+    async updateUser(attrs) {
+      return mockUpdateUser(mockUserId, attrs);
     },
-    async resetPasswordForEmail() {
-      return { data: {}, error: null };
+    async resetPasswordForEmail(email) {
+      return mockResetPasswordForEmail(email);
     },
     async exchangeCodeForSession() {
       return { data: { session: null }, error: null };
@@ -83,6 +85,8 @@ async function createRealServerClient() {
   const supabaseUrl = getSupabaseUrl();
   const supabaseAnonKey = getSupabaseAnonKey();
 
+  const allowIframeEmbed = process.env.ALLOW_IFRAME_EMBED === 'true';
+
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
@@ -93,7 +97,9 @@ async function createRealServerClient() {
           cookiesToSet.forEach(({ name, value, options }) =>
             cookieStore.set(name, value, {
               ...options,
-              ...(isHttps ? { sameSite: 'none' as const, secure: true } : {}),
+              ...(allowIframeEmbed && isHttps
+                ? { sameSite: 'none' as const, secure: true }
+                : { sameSite: 'lax' as const, ...(isHttps ? { secure: true } : {}) }),
             })
           );
         } catch {

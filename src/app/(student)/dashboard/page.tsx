@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, ChevronDown, Clock, FileText, Plus, Search } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronDown, Clock, FileText, Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ReportCard } from '@/components/report/ReportCard';
 import { Spinner } from '@/components/ui/Spinner';
@@ -12,14 +12,25 @@ import { useUser } from '@/hooks/useUser';
 import { useCollege } from '@/hooks/useCollege';
 
 export default function StudentDashboardPage() {
-  const { profile } = useUser();
+  const { profile, isLoading: userLoading, error: userError, refreshUser } = useUser();
   const { currentCollege } = useCollege(profile?.college_id);
 
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'resolved'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { reports, isLoading } = useReports(profile?.college_id, { submitter_id: profile?.id });
+  const {
+    reports,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    error: reportsError,
+    loadMore,
+    refreshReports,
+  } = useReports(profile?.college_id, {
+    submitter_id: profile?.id,
+    enabled: Boolean(profile?.id),
+  });
 
   const filteredReports = reports.filter((report) => {
     if (activeTab === 'active' && ['resolved', 'rejected', 'closed'].includes(report.status)) {
@@ -127,7 +138,7 @@ export default function StudentDashboardPage() {
 
       {/* Controls */}
       <div className="flex flex-col justify-between gap-4 border-b border-neutral-200 pb-4 md:flex-row md:items-center">
-        <div className="inline-flex items-center gap-1 rounded-lg bg-neutral-100 p-1">
+        <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-lg bg-neutral-100 p-1">
           <button
             type="button"
             onClick={() => setActiveTab('all')}
@@ -159,11 +170,15 @@ export default function StudentDashboardPage() {
 
         <div className="flex flex-col items-stretch gap-2.5 sm:flex-row sm:items-center">
           <div className="relative">
+            <label htmlFor="dashboard-report-search" className="sr-only">
+              Search reports
+            </label>
             <Search
               className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400"
               aria-hidden="true"
             />
             <input
+              id="dashboard-report-search"
               type="text"
               placeholder="Search title, building, or ID..."
               value={searchQuery}
@@ -195,10 +210,31 @@ export default function StudentDashboardPage() {
       </div>
 
       {/* Reports Grid */}
-      {isLoading ? (
+      {userLoading || isLoading ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Spinner size="lg" />
           <p className="mt-3 text-sm text-neutral-500">Loading campus reports...</p>
+        </div>
+      ) : userError || reportsError ? (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700"
+          role="alert"
+        >
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{userError || reportsError}</span>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (userError) void refreshUser();
+              if (reportsError) void refreshReports();
+            }}
+          >
+            Retry
+          </Button>
         </div>
       ) : filteredReports.length === 0 ? (
         <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-12 text-center">
@@ -220,10 +256,24 @@ export default function StudentDashboardPage() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredReports.map((report) => (
-            <ReportCard key={report.id} report={report} currentUserId={profile?.id} />
-          ))}
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredReports.map((report) => (
+              <ReportCard key={report.id} report={report} currentUserId={profile?.id} />
+            ))}
+          </div>
+          {hasMore && (
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                isLoading={isLoadingMore}
+                onClick={() => void loadMore()}
+              >
+                Load more reports
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

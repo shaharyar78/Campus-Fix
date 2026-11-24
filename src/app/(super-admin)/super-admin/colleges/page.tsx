@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { CollegeTable } from '@/components/super-admin/CollegeTable';
+import { Button } from '@/components/ui/Button';
 import { useCollege } from '@/hooks/useCollege';
 
 export default function CollegesPage() {
-  const { colleges, isLoading } = useCollege();
+  const { colleges, isLoading, error, refreshColleges } = useCollege();
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
@@ -29,6 +30,21 @@ export default function CollegesPage() {
           Each campus maintains isolated reports, buildings, and user access.
         </p>
       </div>
+
+      {error && !isLoading && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+          role="alert"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{error}</span>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => void refreshColleges()}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       <CollegeTable colleges={colleges} isLoading={isLoading} />
     </div>

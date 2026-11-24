@@ -11,22 +11,51 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Spinner } from '@/components/ui/Spinner';
 import { StatusTimeline } from '@/components/report/StatusTimeline';
 import { REPORT_STATUSES } from '@/lib/constants';
-import { useReports } from '@/hooks/useReports';
-import { createClient } from '@/lib/supabase/client';
+import { isSafeDisplayImageUrl } from '@/lib/imageSecurity';
+import { createClient, getClientAuthHeaders } from '@/lib/supabase/client';
 import { getStatusConfig, getCategoryConfig, formatDate } from '@/lib/utils';
-import { ReportStatus, ReportUpdate } from '@/types';
+import { Report, ReportStatus, ReportUpdate } from '@/types';
 
 export default function AdminReportDetailPage() {
   const params = useParams();
   const reportId = (params?.id as string) || '';
 
-  const { reports, isLoading, updateReportStatus } = useReports();
-  const supabase = createClient();
-  const report = reports.find(
-    (r) =>
-      r.id.toLowerCase() === reportId.toLowerCase() ||
-      r.tracking_id.toLowerCase() === reportId.toLowerCase()
-  );
+  const [report, setReport] = useState<Report | null>(null);
+  const [isLoading, setIsLoading] = useState(Boolean(reportId));
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const supabase = React.useMemo(() => createClient(), []);
+
+  const fetchReport = useCallback(async () => {
+    if (!reportId) return;
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const response = await fetch(`/api/reports/${encodeURIComponent(reportId)}`, {
+        credentials: 'same-origin',
+        headers: getClientAuthHeaders(),
+      });
+      if (response.status === 404) {
+        setReport(null);
+        return;
+      }
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setReport(null);
+        setLoadError(json.error?.message || 'Unable to load report details.');
+        return;
+      }
+      setReport((json.data as Report) || null);
+    } catch {
+      setReport(null);
+      setLoadError('Unable to reach the server. Check your connection and retry.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [reportId]);
+
+  useEffect(() => {
+    void Promise.resolve().then(fetchReport);
+  }, [fetchReport]);
 
   const [selectedStatus, setSelectedStatus] = useState<ReportStatus | null>(null);
   const activeStatus = selectedStatus ?? report?.status ?? 'submitted';
@@ -86,6 +115,23 @@ export default function AdminReportDetailPage() {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center" role="alert">
+        <h2 className="font-display text-xl font-semibold text-neutral-950">Could Not Load Report</h2>
+        <p className="mt-2 text-sm text-neutral-600">{loadError}</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Button type="button" variant="primary" onClick={() => void fetchReport()}>
+            Retry
+          </Button>
+          <Link href="/admin">
+            <Button variant="outline">Return to Triage</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (!report) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
@@ -104,6 +150,9 @@ export default function AdminReportDetailPage() {
 
   const statusConfig = getStatusConfig(report.status);
   const categoryConfig = getCategoryConfig(report.category);
+  const displayPhotos = (
+    report.photo_urls && report.photo_urls.length > 0 ? report.photo_urls : report.photo_paths || []
+  ).filter(isSafeDisplayImageUrl);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,15 +160,42 @@ export default function AdminReportDetailPage() {
     setFeedback(null);
 
     try {
-      const res = await updateReportStatus(report.id, activeStatus, updateNote.trim() || undefined);
-      if (res?.error) {
-        setFeedback({ type: 'error', message: res.error });
+      const response = await fetch(`/api/reports/${report.id}/updates`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', ...getClientAuthHeaders() },
+        body: JSON.stringify({
+          status: activeStatus,
+          message: updateNote.trim() || `Status changed to ${activeStatus}.`,
+        }),
+      });
+      const res = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setFeedback({ type: 'error', message: res.error?.message || 'Could not update this report.' });
       } else {
+        const updatedAt = new Date().toISOString();
+        setReport((current) =>
+          current
+            ? {
+                ...current,
+                status: activeStatus,
+                updated_at: updatedAt,
+                resolved_at:
+                  activeStatus === 'resolved'
+                    ? updatedAt
+                    : activeStatus !== 'closed'
+                      ? null
+                      : current.resolved_at,
+              }
+            : current
+        );
         setFeedback({ type: 'success', message: 'Status and timeline updated successfully.' });
         setUpdateNote('');
         await fetchUpdates(report.id);
         setTimeout(() => setFeedback(null), 4000);
       }
+    } catch {
+      setFeedback({ type: 'error', message: 'Could not update this report.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -209,13 +285,13 @@ export default function AdminReportDetailPage() {
                 </div>
               </div>
 
-              {report.photo_paths && report.photo_paths.length > 0 && (
+              {displayPhotos.length > 0 && (
                 <div>
                   <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-neutral-500">
                     Attached Evidence Photos
                   </h4>
                   <div className="flex flex-wrap gap-3">
-                    {report.photo_paths.map((p, idx) => (
+                    {displayPhotos.map((p, idx) => (
                       <div
                         key={idx}
                         className="relative h-28 w-28 overflow-hidden rounded-lg border border-neutral-200"

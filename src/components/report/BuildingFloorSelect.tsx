@@ -14,6 +14,7 @@ interface BuildingFloorSelectProps {
   room: string;
   section: string;
   collegeSlug?: string;
+  isBuildingsLoading?: boolean;
   onBuildingChange: (id: string) => void;
   onFloorChange: (floor: string) => void;
   onRoomChange: (room: string) => void;
@@ -31,6 +32,7 @@ export const BuildingFloorSelect: React.FC<BuildingFloorSelectProps> = ({
   room,
   section,
   collegeSlug,
+  isBuildingsLoading = false,
   onBuildingChange,
   onFloorChange,
   onRoomChange,
@@ -55,6 +57,12 @@ export const BuildingFloorSelect: React.FC<BuildingFloorSelectProps> = ({
       ]
     : FLOORS;
 
+  const buildingPlaceholder = isBuildingsLoading
+    ? 'Loading campus buildings...'
+    : effectiveBuildings.length === 0
+      ? 'No campus buildings available'
+      : 'Select building';
+
   return (
     <div className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/70 p-4 sm:p-5">
       <div className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
@@ -71,13 +79,10 @@ export const BuildingFloorSelect: React.FC<BuildingFloorSelectProps> = ({
             onBuildingChange(val);
           }}
           error={error}
-          placeholder="Select building"
+          placeholder={buildingPlaceholder}
           required
-          disabled={disabled || effectiveBuildings.length === 0}
+          disabled={disabled || isBuildingsLoading || effectiveBuildings.length === 0}
         >
-          <option value="" disabled>
-            {effectiveBuildings.length === 0 ? 'Loading campus buildings...' : 'Select building'}
-          </option>
           {effectiveBuildings.map((b) => (
             <option key={b.id} value={b.id}>
               {b.name} {b.code ? `(${b.code})` : ''}
@@ -94,7 +99,6 @@ export const BuildingFloorSelect: React.FC<BuildingFloorSelectProps> = ({
           error={floorError}
           required
         >
-          <option value="">Select floor</option>
           {floorOptions.map((f) => (
             <option key={f} value={f}>
               {f}
@@ -112,9 +116,6 @@ export const BuildingFloorSelect: React.FC<BuildingFloorSelectProps> = ({
           placeholder="Select section"
           required
         >
-          <option value="" disabled>
-            Select section
-          </option>
           {KCC_SECTIONS.map((item) => (
             <option key={item} value={item}>
               {item}

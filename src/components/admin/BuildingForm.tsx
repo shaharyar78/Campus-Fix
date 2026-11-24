@@ -48,6 +48,17 @@ export const BuildingForm: React.FC<BuildingFormProps> = ({
     }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
+      const order: Array<[string, string]> = [
+        ['name', 'building-form-name'],
+        ['code', 'building-form-code'],
+        ['floor_count', 'building-form-floors'],
+      ];
+      for (const [key, elementId] of order) {
+        if (nextErrors[key]) {
+          document.getElementById(elementId)?.focus();
+          break;
+        }
+      }
       return;
     }
 
@@ -61,7 +72,7 @@ export const BuildingForm: React.FC<BuildingFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       {generalError && (
         <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700" role="alert">
           {generalError}
@@ -69,6 +80,7 @@ export const BuildingForm: React.FC<BuildingFormProps> = ({
       )}
 
       <Input
+        id="building-form-name"
         label="Building Name"
         placeholder="e.g. Science & Technology Block C"
         value={formData.name}
@@ -78,6 +90,7 @@ export const BuildingForm: React.FC<BuildingFormProps> = ({
       />
 
       <Input
+        id="building-form-code"
         label="Building Short Code"
         placeholder="e.g. STB-C"
         value={formData.code}
@@ -87,6 +100,7 @@ export const BuildingForm: React.FC<BuildingFormProps> = ({
       />
 
       <Input
+        id="building-form-floors"
         label="Total Floors"
         type="number"
         min={0}

@@ -17,6 +17,7 @@ export const TrackingSearch: React.FC = () => {
 
     if (!cleanId) {
       setError('Please enter a tracking ID.');
+      document.getElementById('tracking-id-search')?.focus();
       return;
     }
 
@@ -27,10 +28,15 @@ export const TrackingSearch: React.FC = () => {
   return (
     <form
       onSubmit={handleSearch}
+      noValidate
       className="flex w-full max-w-xl flex-col items-start gap-2.5 sm:flex-row sm:items-start"
     >
-      <div className="w-full flex-1">
+      <div className="w-full flex-1 text-left">
+        <label htmlFor="tracking-id-search" className="sr-only">
+          Tracking ID
+        </label>
         <Input
+          id="tracking-id-search"
           type="text"
           placeholder="COLLEGE-YYYYMM-XXXX"
           value={trackingId}

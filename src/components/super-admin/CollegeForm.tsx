@@ -61,6 +61,17 @@ export const CollegeForm: React.FC<CollegeFormProps> = ({
     const validation = validateCollegeInput(formData);
     if (!validation.isValid) {
       setErrors(validation.errors);
+      const order: Array<[string, string]> = [
+        ['name', 'college-form-name'],
+        ['slug', 'college-form-slug'],
+        ['email_domain', 'college-form-domains'],
+      ];
+      for (const [key, elementId] of order) {
+        if (validation.errors[key]) {
+          document.getElementById(elementId)?.focus();
+          break;
+        }
+      }
       return;
     }
 
@@ -74,7 +85,7 @@ export const CollegeForm: React.FC<CollegeFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       {generalError && (
         <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700" role="alert">
           {generalError}
@@ -82,6 +93,7 @@ export const CollegeForm: React.FC<CollegeFormProps> = ({
       )}
 
       <Input
+        id="college-form-name"
         label="University / College Name"
         placeholder="e.g. Dr. A.P.J. Abdul Kalam Technical University"
         value={formData.name}
@@ -92,6 +104,7 @@ export const CollegeForm: React.FC<CollegeFormProps> = ({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Input
+          id="college-form-slug"
           label="College Code / Slug"
           placeholder="e.g. aktu"
           value={formData.slug}
@@ -102,6 +115,7 @@ export const CollegeForm: React.FC<CollegeFormProps> = ({
         />
 
         <Input
+          id="college-form-domains"
           label="Email Domains (Restricted Access)"
           placeholder="e.g. aktu.ac.in"
           value={formData.email_domain}
@@ -117,6 +131,7 @@ export const CollegeForm: React.FC<CollegeFormProps> = ({
       </div>
 
       <Input
+        id="college-form-address"
         label="Physical Campus Address (Optional)"
         placeholder="e.g. Sector 11, Jankipuram Vistar, Lucknow, UP"
         value={formData.address}

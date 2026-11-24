@@ -17,17 +17,30 @@ import { useReports } from '@/hooks/useReports';
 import { useCollege } from '@/hooks/useCollege';
 import { useBuildings } from '@/hooks/useBuildings';
 import { useUser } from '@/hooks/useUser';
+import { getClientAuthHeaders } from '@/lib/supabase/client';
 import { Report, ReportCategory } from '@/types';
 
 export const ReportForm: React.FC = () => {
   const router = useRouter();
-  const { profile } = useUser();
-  const { colleges, currentCollege, selectedCollegeId, setSelectedCollegeId } = useCollege(
-    profile?.college_id
-  );
+  const { profile, error: userError, refreshUser } = useUser();
+  const {
+    colleges,
+    currentCollege,
+    selectedCollegeId,
+    setSelectedCollegeId,
+    error: collegesError,
+    refreshColleges,
+  } = useCollege(profile?.college_id);
   const effectiveCollegeId = profile?.college_id || currentCollege?.id || colleges[0]?.id || selectedCollegeId;
-  const { reports, createReport } = useReports(effectiveCollegeId);
-  const { buildings } = useBuildings(effectiveCollegeId);
+  const { reports, createReport } = useReports(effectiveCollegeId, {
+    enabled: Boolean(effectiveCollegeId),
+  });
+  const {
+    buildings,
+    isLoading: buildingsLoading,
+    error: buildingsError,
+    refreshBuildings,
+  } = useBuildings(effectiveCollegeId);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -48,6 +61,22 @@ export const ReportForm: React.FC = () => {
   const [duplicateMatches, setDuplicateMatches] = useState<Report[]>([]);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [bypassedDuplicates, setBypassedDuplicates] = useState(false);
+
+  const focusFirstInvalidField = (fieldErrors: Record<string, string>) => {
+    const order: Array<[string, string]> = [
+      ['title', 'issue-summary-title'],
+      ['building_id', 'building'],
+      ['floor', 'floor-level'],
+      ['section', 'section'],
+      ['description', 'detailed-description'],
+    ];
+    for (const [key, elementId] of order) {
+      if (fieldErrors[key]) {
+        document.getElementById(elementId)?.focus();
+        break;
+      }
+    }
+  };
 
   const handleSubmit = async (e?: React.FormEvent, forceSubmit: boolean = false) => {
     if (e) e.preventDefault();
@@ -76,6 +105,7 @@ export const ReportForm: React.FC = () => {
     }
     if (Object.keys(fieldErrors).length > 0) {
       setErrors(fieldErrors);
+      focusFirstInvalidField(fieldErrors);
       return;
     }
     setErrors({});
@@ -104,10 +134,10 @@ export const ReportForm: React.FC = () => {
           ...formData,
           building_id: selectedBuilding ? selectedBuilding.id : null,
           building_label: buildingName,
+          force: forceSubmit || bypassedDuplicates,
         },
         profile?.id,
-        effectiveCollegeId || undefined,
-        currentCollege?.slug || 'kcc'
+        effectiveCollegeId || undefined
       );
 
       if (error || !data) {
@@ -130,6 +160,7 @@ export const ReportForm: React.FC = () => {
       const response = await fetch(`/api/reports/${existing.id}/upvote`, {
         method: 'POST',
         credentials: 'same-origin',
+        headers: getClientAuthHeaders(),
       });
       setShowDuplicateModal(false);
       if (!response.ok) {
@@ -145,9 +176,35 @@ export const ReportForm: React.FC = () => {
     handleSubmit(undefined, true);
   };
 
+  const loadError = userError || collegesError || buildingsError;
+
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+        {loadError && (
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-700"
+            role="alert"
+          >
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" aria-hidden="true" />
+              <span>{loadError}</span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (userError) void refreshUser();
+                if (collegesError) void refreshColleges();
+                if (buildingsError) void refreshBuildings();
+              }}
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+
         {generalError && (
           <div
             className="flex items-start gap-2.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-700"
@@ -160,10 +217,11 @@ export const ReportForm: React.FC = () => {
 
         {(!profile?.college_id || profile?.role === 'super_admin') && colleges.length > 1 && (
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-neutral-700">
+            <label htmlFor="report-college-select" className="block text-sm font-medium text-neutral-700">
               Campus / College <span className="text-rose-500">*</span>
             </label>
             <select
+              id="report-college-select"
               value={effectiveCollegeId || ''}
               onChange={(e) => {
                 setSelectedCollegeId(e.target.value);
@@ -192,16 +250,22 @@ export const ReportForm: React.FC = () => {
         />
 
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-neutral-700">
+          <span id="issue-category-label" className="block text-sm font-medium text-neutral-700">
             Issue Category <span className="text-rose-500">*</span>
-          </label>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          </span>
+          <div
+            role="radiogroup"
+            aria-labelledby="issue-category-label"
+            className="grid grid-cols-2 gap-2.5 sm:grid-cols-4"
+          >
             {REPORT_CATEGORIES.map((cat) => {
               const isSelected = formData.category === cat.value;
               return (
                 <button
                   key={cat.value}
                   type="button"
+                  role="radio"
+                  aria-checked={isSelected}
                   disabled={isSubmitting}
                   onClick={() => setFormData({ ...formData, category: cat.value })}
                   className={`flex flex-col items-start rounded-lg border p-3 text-left transition-colors ${
@@ -218,7 +282,7 @@ export const ReportForm: React.FC = () => {
               );
             })}
           </div>
-          {errors.category && <p className="mt-1 text-xs text-rose-600">{errors.category}</p>}
+          {errors.category && <p className="mt-1 text-xs text-rose-600" role="alert">{errors.category}</p>}
         </div>
 
         <BuildingFloorSelect
@@ -228,6 +292,7 @@ export const ReportForm: React.FC = () => {
           room={formData.room}
           section={formData.section}
           collegeSlug={currentCollege?.slug}
+          isBuildingsLoading={buildingsLoading}
           sectionError={errors.section}
           onBuildingChange={(building_id) => {
             setFormData({ ...formData, building_id, section: '' });
@@ -267,6 +332,7 @@ export const ReportForm: React.FC = () => {
 
         <PhotoUpload
           photos={formData.photo_paths}
+          collegeId={effectiveCollegeId}
           onChange={(photo_paths) => setFormData({ ...formData, photo_paths })}
           disabled={isSubmitting}
         />

@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { Building, ChatMessage, College, Report, ReportUpdate, UserProfile } from '@/types';
+import { validatePassword } from '@/lib/validators';
 import { MOCK_SESSION_COOKIE } from './mockCookies';
 
 export { MOCK_SESSION_COOKIE };
@@ -8,7 +9,15 @@ export interface MockAuthUser {
   id: string;
   email: string;
   passwordHash: string;
+  email_confirmed?: boolean;
   user_metadata?: Record<string, unknown>;
+}
+
+export interface MockUploadEntry {
+  buffer: Buffer;
+  mimeType: string;
+  collegeId: string;
+  userId: string;
 }
 
 export interface MockUpvote {
@@ -26,6 +35,8 @@ export interface MockStore {
   report_updates: ReportUpdate[];
   report_upvotes: MockUpvote[];
   messages: ChatMessage[];
+  reset_requests: Record<string, number[]>;
+  uploads: Record<string, MockUploadEntry>;
 }
 
 export type FilterOp =
@@ -42,6 +53,8 @@ export interface MockQueryPayload {
   filters?: FilterOp[];
   order?: { column: string; ascending: boolean } | null;
   limit?: number | null;
+  range?: { from: number; to: number } | null;
+  count?: 'exact' | null;
   single?: boolean;
   maybeSingle?: boolean;
   values?: unknown;
@@ -353,6 +366,8 @@ function createInitialStore(): MockStore {
         created_at: yesterday,
       },
     ],
+    reset_requests: {},
+    uploads: {},
   };
 }
 
@@ -390,6 +405,9 @@ export function authenticateMockUser(email: string, password: string) {
   if (!account || !verifyMockPassword(password, account.passwordHash)) {
     return { user: null, error: { message: 'Invalid login credentials' } };
   }
+  if (account.email_confirmed === false) {
+    return { user: null, error: { message: 'Email not confirmed' } };
+  }
   const profile = store.profiles.find((p) => p.id === account.id);
   const user = {
     id: account.id,
@@ -403,6 +421,67 @@ export function authenticateMockUser(email: string, password: string) {
       : account.user_metadata,
   };
   return { user, error: null };
+}
+
+export function mockResetPasswordForEmail(
+  email: string,
+  now = Date.now()
+): { data: Record<string, unknown> | null; error: { message: string; status: number } | null } {
+  const normalized = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    return {
+      data: null,
+      error: { message: 'Enter a valid email address.', status: 400 },
+    };
+  }
+
+  const store = getMockStore();
+  if (!store.reset_requests) {
+    store.reset_requests = {};
+  }
+  const windowStart = now - 60_000;
+  const recent = (store.reset_requests[normalized] || []).filter((ts) => ts > windowStart);
+
+  if (recent.length >= 3) {
+    store.reset_requests[normalized] = recent;
+    return {
+      data: null,
+      error: {
+        message: 'For security purposes, you can only request this after 60 seconds.',
+        status: 429,
+      },
+    };
+  }
+
+  store.reset_requests[normalized] = [...recent, now];
+  return { data: {}, error: null };
+}
+
+export function mockUpdateUser(
+  userId: string | null | undefined,
+  attrs: { password?: string }
+): {
+  data: { user: ReturnType<typeof getMockAuthUser> };
+  error: { message: string; status: number } | null;
+} {
+  if (!userId) {
+    return { data: { user: null }, error: { message: 'Auth session missing!', status: 401 } };
+  }
+  const user = getMockAuthUser(userId);
+  if (!user) {
+    return { data: { user: null }, error: { message: 'Auth session missing!', status: 401 } };
+  }
+  const password = typeof attrs?.password === 'string' ? attrs.password : '';
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return { data: { user: null }, error: { message: passwordError, status: 422 } };
+  }
+  const store = getMockStore();
+  const account = store.users.find((u) => u.id === user.id);
+  if (account) {
+    account.passwordHash = hashMockPassword(password);
+  }
+  return { data: { user }, error: null };
 }
 
 function getRowField(row: Record<string, unknown>, col: string): unknown {
@@ -498,6 +577,7 @@ function getTableCollection(store: MockStore, table: string): Record<string, unk
 export function executeMockQuery(payload: MockQueryPayload): {
   data: unknown;
   error: { message: string; code?: string } | null;
+  count?: number;
 } {
   const store = getMockStore();
   const collection = getTableCollection(store, payload.table);
@@ -509,6 +589,7 @@ export function executeMockQuery(payload: MockQueryPayload): {
 
   if (payload.action === 'select') {
     let rows = collection.filter((row) => filters.every((f) => matchesFilter(row, f)));
+    const totalCount = rows.length;
 
     if (payload.order) {
       const { column, ascending } = payload.order;
@@ -522,22 +603,27 @@ export function executeMockQuery(payload: MockQueryPayload): {
       });
     }
 
-    if (typeof payload.limit === 'number') {
+    if (payload.range) {
+      const from = Math.max(0, payload.range.from);
+      const to = Math.max(from, payload.range.to);
+      rows = rows.slice(from, to + 1);
+    } else if (typeof payload.limit === 'number') {
       rows = rows.slice(0, payload.limit);
     }
 
     const enriched = rows.map((row) => enrichRow(store, payload.table, row, payload.columns));
+    const countMeta = payload.count === 'exact' ? { count: totalCount } : {};
 
     if (payload.single) {
       if (enriched.length !== 1) {
-        return { data: null, error: { message: 'Row not found', code: 'PGRST116' } };
+        return { data: null, error: { message: 'Row not found', code: 'PGRST116' }, ...countMeta };
       }
-      return { data: enriched[0], error: null };
+      return { data: enriched[0], error: null, ...countMeta };
     }
     if (payload.maybeSingle) {
-      return { data: enriched[0] ?? null, error: null };
+      return { data: enriched[0] ?? null, error: null, ...countMeta };
     }
-    return { data: enriched, error: null };
+    return { data: enriched, error: null, ...countMeta };
   }
 
   if (payload.action === 'insert') {

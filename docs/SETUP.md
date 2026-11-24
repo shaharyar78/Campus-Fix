@@ -24,6 +24,15 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
+Optional distributed rate limiting (recommended in production):
+
+```text
+REDIS_URL=
+# Or Upstash REST:
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+```
+
 Use the local `.env.local` file for development. Never commit real credentials.
 
 ## Supabase Setup
@@ -49,6 +58,27 @@ https://YOUR_DOMAIN/auth/callback?next=/auth/update-password
 ```
 
 Keep `http://localhost:3000/auth/callback` in the allow list only if local development still needs it.
+
+### Password reset email
+
+1. **Custom SMTP (Resend)**: Go to **Supabase Dashboard -> Authentication -> SMTP Settings** and enable Custom SMTP (default Supabase SMTP is heavily rate limited and unsuitable for production):
+   - Host: `smtp.resend.com`
+   - Port: `465`
+   - User: `resend`
+   - Password: Your Resend API key
+   - Sender email: Your verified domain sender address
+2. **Site URL**: Go to **Authentication -> URL Configuration** and set **Site URL** to `https://campus-fix-liart.vercel.app` (or whichever is the primary production URL).
+3. **Redirect URLs allow-list**: Add each callback URL both with and without `?next=/auth/update-password`:
+   ```text
+   https://campus-fix-liart.vercel.app/auth/callback
+   https://campus-fix-liart.vercel.app/auth/callback?next=/auth/update-password
+   https://kcc-campus-fix.onrender.com/auth/callback
+   https://kcc-campus-fix.onrender.com/auth/callback?next=/auth/update-password
+   http://localhost:3000/auth/callback
+   http://localhost:3000/auth/callback?next=/auth/update-password
+   ```
+4. **Email confirmation & template**: Enable **Confirm email** under **Authentication -> Providers -> Email**. Ensure the **Reset Password** email template includes `{{ .ConfirmationURL }}`.
+5. **Hosting environment variables (Vercel and Render)**: Configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. Keep `SUPABASE_SERVICE_ROLE_KEY` strictly server-side and never expose it to the client.
 
 ## Development
 

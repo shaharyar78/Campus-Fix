@@ -26,7 +26,9 @@ export default function Error({
       </div>
       <h2 className="font-display text-xl font-semibold text-neutral-950">Something went wrong</h2>
       <p className="mt-2 text-sm text-neutral-600">
-        {error.message || 'An unexpected error occurred while loading this page. Please try again.'}
+        {process.env.NODE_ENV === 'production'
+          ? 'An unexpected error occurred while loading this page. Please try again.'
+          : error.message || 'An unexpected error occurred while loading this page. Please try again.'}
       </p>
       <div className="mt-6 flex items-center gap-3">
         <Button onClick={() => reset()} variant="primary">

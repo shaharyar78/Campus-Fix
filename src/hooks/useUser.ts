@@ -15,15 +15,43 @@ export function useUser() {
   const supabase = useMemo(() => createClient(), []);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error: profileError } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    if (profileError) {
-      setError(profileError.message);
+    try {
+      const { data, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      if (profileError) {
+        setError(profileError.message);
+        setProfile(null);
+        return;
+      }
+      setError(null);
+      setProfile(data as UserProfile);
+    } catch {
+      setError('Unable to load your account profile.');
       setProfile(null);
-      return;
     }
-    setError(null);
-    setProfile(data as UserProfile);
   }, [supabase]);
+
+  const refreshUser = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const sessionUser = data.session?.user ?? null;
+      setUser(sessionUser);
+      if (sessionUser) {
+        await fetchProfile(sessionUser.id);
+      } else {
+        setProfile(null);
+        setError(null);
+      }
+    } catch {
+      setError('Unable to check your sign-in session.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchProfile, supabase]);
 
   useEffect(() => {
     let active = true;
@@ -78,5 +106,5 @@ export function useUser() {
     router.refresh();
   };
 
-  return { user, profile, role: profile?.role || 'student', collegeId: profile?.college_id, isLoading, error, signOut };
+  return { user, profile, role: profile?.role || 'student', collegeId: profile?.college_id, isLoading, error, refreshUser, signOut };
 }

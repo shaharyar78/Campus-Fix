@@ -34,12 +34,16 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({
 
   return (
     <div className="flex flex-1 flex-col flex-wrap items-stretch gap-2.5 sm:flex-row sm:items-center">
-      <div className="relative min-w-48 sm:w-64">
+      <div className="relative min-w-0 w-full sm:w-64">
+        <label htmlFor="admin-report-search" className="sr-only">
+          Search reports
+        </label>
         <Search
           className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400"
           aria-hidden="true"
         />
         <input
+          id="admin-report-search"
           type="text"
           placeholder="Filter by title, ID, room..."
           value={search}

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from './supabase/server';
 import { isSupabaseConfigured } from './supabase/config';
 import { isTrustedSameOriginRequest } from './supabase/mockCookies';
+import { isRecord } from './validators';
 import { UserProfile } from '@/types';
 
 export interface AuthContext {
@@ -28,6 +29,44 @@ export function apiError(
     },
     { status }
   );
+}
+
+export function requireSameOrigin(request: Request): NextResponse | null {
+  if (!isTrustedSameOriginRequest(request)) {
+    return apiError('FORBIDDEN', 'Invalid request origin.', 403);
+  }
+  return null;
+}
+
+export async function requireJsonBody(
+  request: Request
+): Promise<{ data: Record<string, unknown> | null; errorResponse: NextResponse | null }> {
+  const contentType = request.headers.get('content-type') || '';
+  if (!contentType.toLowerCase().includes('application/json')) {
+    return {
+      data: null,
+      errorResponse: apiError('UNSUPPORTED_MEDIA_TYPE', 'Content-Type must be application/json', 415),
+    };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = await request.json();
+  } catch {
+    return {
+      data: null,
+      errorResponse: apiError('BAD_REQUEST', 'Invalid JSON body', 400),
+    };
+  }
+
+  if (!isRecord(parsed)) {
+    return {
+      data: null,
+      errorResponse: apiError('BAD_REQUEST', 'Invalid JSON body', 400),
+    };
+  }
+
+  return { data: parsed, errorResponse: null };
 }
 
 export async function getAuthContext(request?: Request): Promise<AuthContext> {

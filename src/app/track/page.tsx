@@ -11,15 +11,19 @@ import { useReports } from '@/hooks/useReports';
 import { useUser } from '@/hooks/useUser';
 
 export default function TrackSearchPage() {
-  const { profile } = useUser();
-  const { reports, isLoading, error } = useReports(profile?.college_id);
+  const { user, profile, isLoading: userLoading, error: userError, refreshUser } = useUser();
+  const canLoadCampusReports = Boolean(user && profile?.approval_status === 'approved');
+  const { reports, isLoading, error, refreshReports } = useReports(profile?.college_id, {
+    enabled: canLoadCampusReports,
+  });
 
-  const recentReports = reports.slice(0, 3);
+  const recentReports = canLoadCampusReports ? reports.slice(0, 3) : [];
+  const loadError = userError || (canLoadCampusReports ? error : null);
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-8 sm:px-6">
       {/* Search Hero */}
-      <section className="rounded-2xl border border-neutral-200 bg-white p-8 text-center sm:p-10">
+      <section className="rounded-2xl border border-neutral-200 bg-white p-6 text-center sm:p-10">
         <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700">
           <Search className="h-5 w-5" aria-hidden="true" />
         </div>
@@ -44,17 +48,30 @@ export default function TrackSearchPage() {
           <span className="text-xs text-neutral-500">Select any ticket to inspect lifecycle</span>
         </div>
 
-        {error && (
+        {loadError && (
           <div
-            className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-700"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-700"
             role="alert"
           >
-            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{error}</span>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>{loadError}</span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (userError) void refreshUser();
+                if (error && canLoadCampusReports) void refreshReports();
+              }}
+            >
+              Retry
+            </Button>
           </div>
         )}
 
-        {isLoading ? (
+        {userLoading || (canLoadCampusReports && isLoading) ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {[1, 2, 3].map((idx) => (
               <div key={idx} className="space-y-3 rounded-xl border border-neutral-200 bg-white p-5">
@@ -64,6 +81,25 @@ export default function TrackSearchPage() {
                 <Skeleton className="h-4 w-2/3" />
               </div>
             ))}
+          </div>
+        ) : !canLoadCampusReports ? (
+          <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-10 text-center">
+            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-400">
+              <FileText className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <h3 className="mt-3 font-display text-sm font-semibold text-neutral-950">
+              Sign in to inspect ticket details
+            </h3>
+            <p className="mt-1 text-xs text-neutral-500">
+              Recent campus tickets and full ticket timelines require an approved campus account.
+            </p>
+            <div className="mt-5">
+              <Link href="/login">
+                <Button variant="primary" size="sm">
+                  Sign in
+                </Button>
+              </Link>
+            </div>
           </div>
         ) : recentReports.length === 0 ? (
           <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-10 text-center">

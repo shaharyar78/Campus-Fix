@@ -140,12 +140,16 @@ create index if not exists reports_submitter_idx
   on public.reports (submitter_id);
 create index if not exists reports_created_at_idx
   on public.reports (created_at desc);
+create index if not exists reports_college_created_at_idx
+  on public.reports (college_id, created_at desc);
 create index if not exists report_upvotes_user_idx
   on public.report_upvotes (user_id);
 create index if not exists report_updates_report_idx
   on public.report_updates (report_id, created_at);
 create index if not exists messages_report_created_idx
   on public.messages (report_id, created_at);
+create index if not exists messages_college_created_at_idx
+  on public.messages (college_id, created_at desc);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -206,10 +210,10 @@ begin
     raise exception 'Select an active college before signing up';
   end if;
 
-  if campus_email_domain is not null and not exists (
+  if campus_email_domain is not null and length(trim(campus_email_domain)) > 0 and not exists (
     select 1
-    from unnest(string_to_array(lower(regexp_replace(trim(campus_email_domain), '^@', '')), ',')) as allowed_domain(domain)
-    where lower(split_part(new.email, '@', 2)) = trim(allowed_domain.domain)
+    from unnest(string_to_array(lower(campus_email_domain), ',')) as allowed_domain(domain)
+    where lower(split_part(new.email, '@', 2)) = regexp_replace(trim(allowed_domain.domain), '^@', '')
   ) then
     raise exception 'Use an email address from your selected college domain';
   end if;
@@ -230,7 +234,7 @@ begin
     case when requested_role = 'student' then 'approved' else 'pending' end,
     requested_role,
     new.email,
-    coalesce(new.raw_user_meta_data ->> 'full_name', split_part(new.email, '@', 1)),
+    coalesce(nullif(trim(new.raw_user_meta_data ->> 'full_name'), ''), split_part(new.email, '@', 1)),
     case when requested_role = 'student' then now() else null end
   )
   on conflict (id) do update
@@ -316,3 +320,52 @@ drop trigger if exists prevent_unauthorized_report_updates on public.reports;
 create trigger prevent_unauthorized_report_updates
 before update on public.reports
 for each row execute function public.prevent_unauthorized_report_updates();
+
+create or replace function public.normalize_profile_username()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.username is not null then
+    new.username := nullif(lower(trim(new.username)), '');
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_normalize_username on public.profiles;
+create trigger profiles_normalize_username
+before insert or update on public.profiles
+for each row execute function public.normalize_profile_username();
+
+create or replace function public.prevent_unauthorized_profile_updates()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if coalesce(auth.role(), '') <> 'service_role'
+     and auth.uid() is not null
+     and (
+       old.role is distinct from new.role
+       or old.approval_status is distinct from new.approval_status
+       or old.approval_requested_role is distinct from new.approval_requested_role
+       or old.approved_by is distinct from new.approved_by
+       or old.approved_at is distinct from new.approved_at
+       or old.college_id is distinct from new.college_id
+     )
+  then
+    if not public.is_super_admin() then
+      raise exception 'Unauthorized update to protected profile fields';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists prevent_unauthorized_profile_updates on public.profiles;
+create trigger prevent_unauthorized_profile_updates
+before update on public.profiles
+for each row execute function public.prevent_unauthorized_profile_updates();

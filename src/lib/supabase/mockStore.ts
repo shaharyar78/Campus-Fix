@@ -740,3 +740,48 @@ export function executeMockQuery(payload: MockQueryPayload): {
 
   return { data: null, error: { message: 'Unsupported action' } };
 }
+
+export function executeMockRpc(
+  name: string,
+  args: Record<string, unknown>,
+  userId: string | null | undefined
+): { data: unknown; error: { message: string; code?: string } | null } {
+  if (name !== 'append_report_update') {
+    return { data: null, error: { message: `RPC ${name} not found` } };
+  }
+  if (!userId) return { data: null, error: { message: 'Authentication required', code: '42501' } };
+
+  const store = getMockStore();
+  const actor = store.profiles.find((profile) => profile.id === userId);
+  const reportId = typeof args.p_report_id === 'string' ? args.p_report_id : '';
+  const report = store.reports.find((item) => item.id === reportId);
+  const message = typeof args.p_message === 'string' ? args.p_message.trim() : '';
+  const status = typeof args.p_status === 'string' ? args.p_status as ReportUpdate['status'] : null;
+  if (!actor || (actor.role !== 'admin' && actor.role !== 'super_admin')) {
+    return { data: null, error: { message: 'Administrator permission required', code: '42501' } };
+  }
+  if (!report || (actor.role === 'admin' && report.college_id !== actor.college_id)) {
+    return { data: null, error: { message: 'Report not found or not available to this account', code: 'P0002' } };
+  }
+  if (!message || message.length > 4000) {
+    return { data: null, error: { message: 'Update message must be between 1 and 4000 characters', code: '22023' } };
+  }
+
+  const now = new Date().toISOString();
+  if (status) {
+    report.status = status;
+    report.updated_at = now;
+    if (status === 'resolved') report.resolved_at = now;
+    else if (status !== 'closed') report.resolved_at = null;
+  }
+  const update: ReportUpdate = {
+    id: randomUUID(),
+    report_id: report.id,
+    author_id: userId,
+    status,
+    message,
+    created_at: now,
+  };
+  store.report_updates.push(update);
+  return { data: update, error: null };
+}

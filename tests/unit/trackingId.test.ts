@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { generateTrackingId, isValidTrackingId } from '../../src/lib/trackingId';
 
 describe('Tracking ID', () => {
-  it('generates IDs with CF-YYYYMM-XXXX format', () => {
+  it('generates IDs with CF-YYYYMM-8-hex-character format', () => {
     const id = generateTrackingId();
-    expect(id).toMatch(/^CF-\d{6}-[A-Z0-9]{4}$/);
+    expect(id).toMatch(/^CF-\d{6}-[A-F0-9]{8}$/);
     expect(isValidTrackingId(id)).toBe(true);
   });
 

@@ -20,6 +20,7 @@ type AuthSession = {
 type AuthChangeCallback = (event: string, session: AuthSession | null) => void;
 
 type Executor = (payload: MockQueryPayload) => Promise<QueryResult>;
+type RpcExecutor = (name: string, args: Record<string, unknown>) => Promise<QueryResult> | QueryResult;
 
 class MockQueryBuilder implements PromiseLike<QueryResult> {
   private payload: MockQueryPayload;
@@ -149,11 +150,16 @@ export interface MockAuthAdapter {
 
 export function createMockClientWithAdapter(
   executor: Executor,
-  auth: MockAuthAdapter
+  auth: MockAuthAdapter,
+  rpcExecutor?: RpcExecutor
 ) {
   return {
     from(table: string) {
       return new MockQueryBuilder(table, executor);
+    },
+    async rpc(name: string, args: Record<string, unknown>) {
+      if (!rpcExecutor) return { data: null, error: { message: `RPC ${name} not found` } };
+      return rpcExecutor(name, args);
     },
     auth,
     channel() {

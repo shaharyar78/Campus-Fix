@@ -331,7 +331,7 @@ describe('CampusFix End-to-End API & Security Flows (Scenarios 1-10)', () => {
           building_label: 'KCC Block C',
           floor: '4th Floor',
           room: 'Stairwell B',
-          section: 'C4',
+          section: 'A4',
           photo_paths: [uploadJson.data[0].path],
         },
       })
@@ -384,6 +384,7 @@ describe('CampusFix End-to-End API & Security Flows (Scenarios 1-10)', () => {
           building_label: 'KCC Block A',
           floor: '2nd Floor',
           room: 'Corridor near Lab 204',
+          section: 'A2',
         },
       })
     );
@@ -407,6 +408,7 @@ describe('CampusFix End-to-End API & Security Flows (Scenarios 1-10)', () => {
           building_label: 'KCC Block A',
           floor: '2nd Floor',
           room: 'Corridor near Lab 204',
+          section: 'A2',
           force: true,
         },
       })
@@ -472,7 +474,7 @@ describe('CampusFix End-to-End API & Security Flows (Scenarios 1-10)', () => {
     const adminToken = signMockSessionToken(ADMIN_ID);
 
     // Change report status + add update note
-    const statusRes = await reportByIdPATCH(
+    const legacyStatusRes = await reportByIdPATCH(
       makeJsonRequest(`/api/reports/${REPORT_1_ID}`, {
         method: 'PATCH',
         token: adminToken,
@@ -480,9 +482,9 @@ describe('CampusFix End-to-End API & Security Flows (Scenarios 1-10)', () => {
       }),
       { params: Promise.resolve({ id: REPORT_1_ID }) }
     );
-    expect(statusRes.status).toBe(200);
+    expect(legacyStatusRes.status).toBe(400);
 
-    const noteRes = await reportUpdatesPOST(
+    const statusRes = await reportUpdatesPOST(
       makeJsonRequest(`/api/reports/${REPORT_1_ID}/updates`, {
         method: 'POST',
         token: adminToken,
@@ -490,7 +492,9 @@ describe('CampusFix End-to-End API & Security Flows (Scenarios 1-10)', () => {
       }),
       { params: Promise.resolve({ id: REPORT_1_ID }) }
     );
-    expect(noteRes.status).toBe(201);
+    expect(statusRes.status).toBe(201);
+    expect(getMockStore().reports.find((report) => report.id === REPORT_1_ID)?.status).toBe('resolved');
+    expect(getMockStore().report_updates.at(-1)?.message).toBe('Replaced tube light fixture and verified switch.');
 
     // Add campus building
     const buildingRes = await buildingsPOST(

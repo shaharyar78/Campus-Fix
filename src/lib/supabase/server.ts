@@ -25,6 +25,7 @@ import {
   getMockAuthUser,
   mockResetPasswordForEmail,
   mockUpdateUser,
+  executeMockRpc,
 } from './mockStore';
 
 function createMockServerClient(mockUserId?: string | null, rawToken?: string | null) {
@@ -75,7 +76,9 @@ function createMockServerClient(mockUserId?: string | null, rawToken?: string | 
     },
   };
 
-  return createMockClientWithAdapter(executor, auth);
+  return createMockClientWithAdapter(executor, auth, (name, args) =>
+    executeMockRpc(name, args, mockUserId)
+  );
 }
 
 async function createRealServerClient() {

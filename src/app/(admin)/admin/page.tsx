@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Building2, ChevronDown, MessageSquare, X } from 'lucide-react';
 import { StatsCards } from '@/components/admin/StatsCards';
+import { PendingStudentApprovals } from '@/components/admin/PendingStudentApprovals';
 import { ReportFilters } from '@/components/admin/ReportFilters';
 import { ReportsTable } from '@/components/admin/ReportsTable';
 import { Button } from '@/components/ui/Button';
@@ -106,6 +107,8 @@ export default function AdminReportsPage() {
 
       {/* KPI Stats Cards */}
   <StatsCards reports={reports} summary={summary} />
+
+      <PendingStudentApprovals />
 
       {/* Filters and Search Bar */}
       <div className="flex flex-col justify-between gap-3 rounded-xl border border-neutral-200 bg-white p-4 lg:flex-row lg:items-center">

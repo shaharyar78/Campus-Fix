@@ -72,7 +72,7 @@ test.describe('Authentication, Password Recovery, Report Submission, Tracking, D
     await floorSelect.selectOption('2nd Floor');
     const sectionSelect = page.locator('#section');
     if (await sectionSelect.isVisible()) {
-      await sectionSelect.selectOption('C2');
+      await sectionSelect.selectOption('A2');
     }
     await page.locator('#detailed-description').fill('Drinking water filter valve near corridor 202 is stuck closed.');
     await page.getByRole('button', { name: 'Submit Maintenance Report' }).click();

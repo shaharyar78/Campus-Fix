@@ -1,16 +1,21 @@
 import React from 'react';
 import { AlertTriangle, BarChart3, CheckCircle2, Wrench } from 'lucide-react';
-import { Report } from '@/types';
+import { Report, ReportSummary } from '@/types';
 
 interface StatsCardsProps {
   reports: Report[];
+  summary?: ReportSummary;
 }
 
-export const StatsCards: React.FC<StatsCardsProps> = ({ reports }) => {
-  const total = reports.length;
-  const pending = reports.filter((r) => r.status === 'submitted' || r.status === 'under_review').length;
-  const inProgress = reports.filter((r) => r.status === 'assigned' || r.status === 'in_progress').length;
-  const resolved = reports.filter((r) => r.status === 'resolved').length;
+export const StatsCards: React.FC<StatsCardsProps> = ({ reports, summary }) => {
+  const counts = summary || reports.reduce((result, report) => ({
+    ...result,
+    [report.status]: result[report.status] + 1,
+  }), { submitted: 0, under_review: 0, assigned: 0, in_progress: 0, resolved: 0, rejected: 0, closed: 0 });
+  const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+  const pending = counts.submitted + counts.under_review;
+  const inProgress = counts.assigned + counts.in_progress;
+  const resolved = counts.resolved;
   const resolutionRate = total > 0 ? Math.round((resolved / total) * 100) : 0;
 
   return (

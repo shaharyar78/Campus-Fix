@@ -20,9 +20,14 @@ export function useUser() {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       if (profileError) {
         setError(profileError.message);
+        setProfile(null);
+        return;
+      }
+      if (!data) {
+        setError('Your account profile is missing. Contact your campus administrator.');
         setProfile(null);
         return;
       }

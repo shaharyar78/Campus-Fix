@@ -39,33 +39,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     if (!report) return apiError('NOT_FOUND', 'Report not found', 404);
 
-    const { data, error } = await supabase.from('report_updates').insert([{
-      report_id: report.id,
-      author_id: user.id,
-      status: typeof body.status === 'string' ? body.status as ReportStatus : null,
-      message: message.trim(),
-    }]).select().single();
+    const { data, error } = await supabase.rpc('append_report_update', {
+      p_report_id: report.id,
+      p_status: typeof body.status === 'string' ? body.status as ReportStatus : null,
+      p_message: message.trim(),
+    });
     if (error) {
       console.error('Report updates insert error:', error);
       return apiError('DATABASE_ERROR', 'Could not save the report update', 500);
-    }
-
-    if (typeof body.status === 'string') {
-      const updatedAt = new Date().toISOString();
-      const resolvedPatch =
-        body.status === 'resolved'
-          ? { resolved_at: updatedAt }
-          : body.status !== 'closed'
-            ? { resolved_at: null }
-            : {};
-      const updateResult = await supabase
-        .from('reports')
-        .update({ status: body.status as ReportStatus, updated_at: updatedAt, ...resolvedPatch })
-        .eq('id', report.id);
-      if (updateResult.error) {
-        console.error('Report status sync error:', updateResult.error);
-        return apiError('DATABASE_ERROR', 'Update saved, but report status did not change', 500);
-      }
     }
     return NextResponse.json({ data }, { status: 201 });
   } catch (err) {

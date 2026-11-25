@@ -39,3 +39,4 @@ next-env.d.ts
 .gemini/
 skills-lock.json
 AGENTS.md
+supabase/.temp/**

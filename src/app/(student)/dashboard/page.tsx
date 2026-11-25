@@ -27,6 +27,7 @@ export default function StudentDashboardPage() {
     error: reportsError,
     loadMore,
     refreshReports,
+    summary,
   } = useReports(profile?.college_id, {
     submitter_id: profile?.id,
     enabled: Boolean(profile?.id),
@@ -53,10 +54,10 @@ export default function StudentDashboardPage() {
     return true;
   });
 
-  const totalReports = reports.length;
-  const pendingReports = reports.filter((r) => ['submitted', 'under_review'].includes(r.status)).length;
-  const activeIssuesReports = reports.filter((r) => !['resolved', 'rejected', 'closed'].includes(r.status)).length;
-  const resolvedReports = reports.filter((r) => r.status === 'resolved').length;
+  const totalReports = Object.values(summary).reduce((sum, count) => sum + count, 0);
+  const pendingReports = summary.submitted + summary.under_review;
+  const activeIssuesReports = summary.submitted + summary.under_review + summary.assigned + summary.in_progress;
+  const resolvedReports = summary.resolved;
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6">

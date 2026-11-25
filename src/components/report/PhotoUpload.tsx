@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { getClientAuthHeaders } from '@/lib/supabase/client';
-import { isSafeDisplayImageUrl } from '@/lib/imageSecurity';
+import { isSafeDisplayImageUrl, MAX_UPLOAD_FILE_BYTES } from '@/lib/imageSecurity';
 
 interface PhotoUploadProps {
   photos: string[];
@@ -49,9 +49,9 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
       return;
     }
 
-    const tooLarge = selected.find((file) => file.size > 5 * 1024 * 1024);
+    const tooLarge = selected.find((file) => file.size > MAX_UPLOAD_FILE_BYTES);
     if (tooLarge) {
-      setError(`${tooLarge.name} exceeds the 5 MB limit.`);
+      setError(`${tooLarge.name} exceeds the 4 MB limit.`);
       return;
     }
 
@@ -60,7 +60,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
       .slice(0, remainingSlots);
 
     if (valid.length === 0) {
-      setError('Choose JPEG, PNG, or WebP images (maximum 5 MB each).');
+      setError('Choose JPEG, PNG, or WebP images (maximum 4 MB each).');
       return;
     }
     if (valid.length !== selected.length) {
@@ -68,56 +68,55 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
     }
 
     setIsUploading(true);
+    const nextPreviews: Record<string, string> = {};
+    const nextPaths: string[] = [];
+    const uploadErrors: string[] = [];
+    let metadataStripped = false;
+
     try {
-      const formData = new FormData();
-      if (collegeId) {
-        formData.set('college_id', collegeId);
-      }
       for (const file of valid) {
+        const formData = new FormData();
+        if (collegeId) formData.set('college_id', collegeId);
         formData.append('files', file);
-      }
 
-      const headers = getClientAuthHeaders();
-      const response = await fetch('/api/uploads', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers,
-        body: formData,
-      });
+        const response = await fetch('/api/uploads', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: getClientAuthHeaders(),
+          body: formData,
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          uploadErrors.push(`${file.name}: ${result.error?.message || 'upload failed'}`);
+          continue;
+        }
 
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setError(result.error?.message || 'Could not upload the selected images.');
-        return;
-      }
+        const item = (result.data || [])[0] as {
+          path?: string;
+          signedUrl?: string | null;
+          metadataStripped?: boolean;
+        } | undefined;
+        if (!item?.path) {
+          uploadErrors.push(`${file.name}: the server did not return an uploaded file.`);
+          continue;
+        }
 
-      const uploaded = (result.data || []) as Array<{
-        path: string;
-        signedUrl: string | null;
-        metadataStripped?: boolean;
-      }>;
-
-      const nextPreviews: Record<string, string> = {};
-      const nextPaths: string[] = [];
-
-      uploaded.forEach((item, index) => {
-        if (!item?.path) return;
         nextPaths.push(item.path);
-        const safeUrl =
-          item.signedUrl && isSafeDisplayImageUrl(item.signedUrl)
-            ? item.signedUrl
-            : URL.createObjectURL(valid[index]);
+        const safeUrl = item.signedUrl && isSafeDisplayImageUrl(item.signedUrl)
+          ? item.signedUrl
+          : URL.createObjectURL(file);
         nextPreviews[item.path] = safeUrl;
-      });
+        metadataStripped ||= Boolean(item.metadataStripped);
+      }
 
-      if (uploaded.some((item) => item.metadataStripped)) {
+      if (nextPaths.length > 0) onChange([...photos, ...nextPaths]);
+      setPreviews((current) => ({ ...current, ...nextPreviews }));
+      if (metadataStripped) {
         setNotice('EXIF and GPS location metadata was removed from uploaded photos.');
       }
-
-      setPreviews((current) => ({ ...current, ...nextPreviews }));
-      onChange([...photos, ...nextPaths]);
+      if (uploadErrors.length > 0) setError(uploadErrors.join(' '));
     } catch {
-      setError('One of the selected images could not be uploaded.');
+      setError('Could not upload the selected image(s). Check your connection and retry.');
     } finally {
       setIsUploading(false);
     }
@@ -207,7 +206,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
         disabled={disabled || isUploading}
       />
       <p className="text-xs text-neutral-500">
-        JPEG, PNG, or WebP up to 5 MB each. Location/EXIF metadata is stripped automatically on upload.
+        JPEG, PNG, or WebP up to 4 MB each. Up to {maxPhotos} photos are uploaded one at a time; location/EXIF metadata is stripped automatically.
       </p>
       {notice && (
         <p className="text-xs text-emerald-700" role="status">

@@ -94,9 +94,24 @@ export function useChat(reportId?: string | null, collegeId?: string | null) {
         table: 'messages',
         filter: reportId ? `report_id=eq.${reportId}` : `college_id=eq.${collegeId}`,
       }, (payload) => {
-        setMessages((current) => current.some((item) => item.id === payload.new.id)
-          ? current
-          : [...current, payload.new as ChatMessage]);
+        void fetch(`/api/chat?message_id=${encodeURIComponent(String(payload.new.id))}&college_id=${encodeURIComponent(collegeId)}`, {
+          credentials: 'same-origin',
+          headers: getClientAuthHeaders(),
+        })
+          .then(async (response) => {
+            if (!response.ok) return null;
+            const result = await response.json().catch(() => null);
+            return (result?.data?.[0] as ChatMessage | undefined) || null;
+          })
+          .then((message) => {
+            if (!message) return;
+            setMessages((current) => current.some((item) => item.id === message.id)
+              ? current
+              : [...current, message]);
+          })
+          .catch(() => {
+            // A later history refresh can recover a missed realtime message.
+          });
       })
       .subscribe();
 

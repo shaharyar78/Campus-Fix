@@ -19,6 +19,7 @@ export async function GET(request: Request) {
     const params = new URL(request.url).searchParams;
     const { limit, offset } = parsePagination(params);
     const reportId = params.get('report_id');
+    const messageId = params.get('message_id');
     const supabase = await createClient(request);
     const requestedCollegeId = params.get('college_id');
     const collegeId = profile.role === 'super_admin' ? requestedCollegeId : profile.college_id;
@@ -34,7 +35,11 @@ export async function GET(request: Request) {
       .select('*, sender:profiles!sender_id(id, full_name, email, role)', { count: 'exact' })
       .eq('college_id', collegeId)
       .order('created_at', { ascending: false });
-    query = reportId ? query.eq('report_id', reportId) : query.is('report_id', null);
+    if (messageId) {
+      query = query.eq('id', messageId);
+    } else {
+      query = reportId ? query.eq('report_id', reportId) : query.is('report_id', null);
+    }
 
     const { data, count, error } = await query.range(offset, offset + limit - 1);
     if (error) {

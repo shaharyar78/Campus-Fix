@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { CreateReportInput, Report, ReportFilterOptions, ReportStatus } from '@/types';
+import { CreateReportInput, Report, ReportFilterOptions, ReportStatus, ReportSummary } from '@/types';
 import { getClientAuthHeaders } from '@/lib/supabase/client';
 
 const DEFAULT_PAGE_SIZE = 20;
+const EMPTY_SUMMARY: ReportSummary = {
+  submitted: 0, under_review: 0, assigned: 0, in_progress: 0, resolved: 0, rejected: 0, closed: 0,
+};
 
 export function useReports(
   collegeId?: string | null,
@@ -15,6 +18,7 @@ export function useReports(
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState<ReportSummary>(EMPTY_SUMMARY);
   const [error, setError] = useState<string | null>(null);
 
   const submitterId = filters?.submitter_id;
@@ -29,6 +33,7 @@ export function useReports(
       const params = new URLSearchParams();
       params.set('limit', String(limit));
       params.set('offset', String(offset));
+      if (offset === 0) params.set('include_summary', 'true');
       if (collegeId) params.set('college_id', collegeId);
       if (submitterId) params.set('submitter_id', submitterId);
       if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
@@ -45,6 +50,7 @@ export function useReports(
       setReports([]);
       setHasMore(false);
       setTotal(0);
+      setSummary(EMPTY_SUMMARY);
       setError(null);
       setIsLoading(false);
       return;
@@ -65,10 +71,12 @@ export function useReports(
       setReports(rows);
       setHasMore(Boolean(result.pagination?.hasMore));
       setTotal(typeof result.pagination?.total === 'number' ? result.pagination.total : rows.length);
+      if (result.summary) setSummary({ ...EMPTY_SUMMARY, ...result.summary });
     } catch (err) {
       setReports([]);
       setHasMore(false);
       setTotal(0);
+      setSummary(EMPTY_SUMMARY);
       setError(err instanceof Error ? err.message : 'Could not load reports.');
     } finally {
       setIsLoading(false);
@@ -146,6 +154,7 @@ export function useReports(
       const report = result.data as Report;
       setReports((current) => [report, ...current]);
       setTotal((current) => current + 1);
+      setSummary((current) => ({ ...current, submitted: current.submitted + 1 }));
       return { data: report, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Could not save the report.' };
@@ -176,6 +185,15 @@ export function useReports(
           report.id === reportId ? { ...report, status, updated_at: updatedAt, ...resolvedPatch } : report
         )
       );
+      setSummary((current) => {
+        const previous = reports.find((report) => report.id === reportId)?.status;
+        if (!previous || previous === status) return current;
+        return {
+          ...current,
+          [previous]: Math.max(0, current[previous] - 1),
+          [status]: current[status] + 1,
+        };
+      });
       return { data: result.data, error: null };
     } catch (err) {
       return { data: null, error: err instanceof Error ? err.message : 'Could not update this report.' };
@@ -188,6 +206,7 @@ export function useReports(
     isLoadingMore,
     hasMore,
     total,
+    summary,
     error,
     refreshReports: fetchReports,
     loadMore,

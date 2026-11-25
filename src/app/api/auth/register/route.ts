@@ -124,7 +124,6 @@ export async function POST(request: Request) {
         const errCode = (signUpError as { code?: string }).code;
 
         if (
-          errStatus === 422 ||
           errCode === 'email_exists' ||
           errCode === 'user_already_exists' ||
           errMsg.includes('already') ||

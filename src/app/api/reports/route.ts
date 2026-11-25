@@ -9,11 +9,15 @@ import { findPotentialDuplicates } from '@/lib/deduplication';
 import { createClient } from '@/lib/supabase/server';
 import { Report, ReportCategory, SituationLevel } from '@/types';
 
+const VALID_STATUSES = ['submitted', 'under_review', 'assigned', 'in_progress', 'resolved', 'rejected', 'closed'];
+const VALID_CATEGORIES = ['electrical', 'plumbing', 'cleanliness', 'internet', 'furniture', 'safety', 'other'];
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function parsePagination(params: URLSearchParams) {
   const rawLimit = Number(params.get('limit'));
   const rawOffset = Number(params.get('offset'));
   const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(Math.floor(rawLimit), 50) : 20;
-  const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? Math.floor(rawOffset) : 0;
+  const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? Math.min(Math.floor(rawOffset), 1_000_000) : 0;
   return { limit, offset };
 }
 
@@ -42,6 +46,14 @@ export async function GET(request: Request) {
     const params = new URL(request.url).searchParams;
     const { limit, offset } = parsePagination(params);
     const supabase = await createClient(request);
+    const requestedCollegeId = params.get('college_id');
+    if (requestedCollegeId && !UUID_PATTERN.test(requestedCollegeId)) {
+      return apiError('VALIDATION_ERROR', 'Invalid college id', 400);
+    }
+    if (profile.role !== 'super_admin' && requestedCollegeId && requestedCollegeId !== profile.college_id) {
+      return apiError('FORBIDDEN', 'You cannot view reports from another college', 403);
+    }
+    const collegeScope = profile.role === 'super_admin' ? requestedCollegeId : profile.college_id;
 
     let query = supabase
       .from('reports')
@@ -50,7 +62,7 @@ export async function GET(request: Request) {
       })
       .order('created_at', { ascending: false });
 
-    if (profile.college_id) query = query.eq('college_id', profile.college_id);
+    if (collegeScope) query = query.eq('college_id', collegeScope);
 
     const status = params.get('status');
     const category = params.get('category');
@@ -58,11 +70,28 @@ export async function GET(request: Request) {
     const submitterId = params.get('submitter_id');
     const search = params.get('search');
 
+    if (status && status !== 'all' && !VALID_STATUSES.includes(status)) {
+      return apiError('VALIDATION_ERROR', 'Invalid report status filter', 400);
+    }
+    if (category && category !== 'all' && !VALID_CATEGORIES.includes(category)) {
+      return apiError('VALIDATION_ERROR', 'Invalid report category filter', 400);
+    }
+    if (buildingId && buildingId !== 'all' && !UUID_PATTERN.test(buildingId)) {
+      return apiError('VALIDATION_ERROR', 'Invalid building filter', 400);
+    }
+    if (submitterId && !UUID_PATTERN.test(submitterId)) {
+      return apiError('VALIDATION_ERROR', 'Invalid submitter filter', 400);
+    }
+
     if (status && status !== 'all') query = query.eq('status', status);
     if (category && category !== 'all') query = query.eq('category', category);
     if (buildingId && buildingId !== 'all') query = query.eq('building_id', buildingId);
     if (submitterId) query = query.eq('submitter_id', submitterId);
-    if (search?.trim()) query = query.ilike('title', `%${search.trim()}%`);
+    const searchTerm = search?.trim().slice(0, 120).replace(/[,%()]/g, ' ');
+    if (searchTerm) {
+      const pattern = `%${searchTerm}%`;
+      query = query.or(`title.ilike.${pattern},description.ilike.${pattern},tracking_id.ilike.${pattern},room.ilike.${pattern},building_label.ilike.${pattern}`);
+    }
 
     const { data, count, error } = await query.range(offset, offset + limit - 1);
     if (error) {
@@ -74,6 +103,20 @@ export async function GET(request: Request) {
     const enriched = await attachSignedPhotoUrls(rows);
     const total = typeof count === 'number' ? count : rows.length;
 
+    let summary: Record<string, number> | undefined;
+    if (params.get('include_summary') === 'true') {
+      const statuses = ['submitted', 'under_review', 'assigned', 'in_progress', 'resolved', 'rejected', 'closed'] as const;
+      const counts = await Promise.all(statuses.map(async (reportStatus) => {
+        let countQuery = supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', reportStatus);
+        if (collegeScope) countQuery = countQuery.eq('college_id', collegeScope);
+        if (submitterId) countQuery = countQuery.eq('submitter_id', submitterId);
+        const result = await countQuery;
+        if (result.error) throw result.error;
+        return [reportStatus, result.count ?? 0] as const;
+      }));
+      summary = Object.fromEntries(counts);
+    }
+
     return NextResponse.json({
       data: enriched,
       pagination: {
@@ -82,6 +125,7 @@ export async function GET(request: Request) {
         total,
         hasMore: offset + rows.length < total,
       },
+      ...(summary ? { summary } : {}),
     });
   } catch (err) {
     console.error('Reports GET unexpected error:', err);
@@ -175,6 +219,7 @@ export async function POST(request: Request) {
         .select('id, college_id, sections')
         .eq('id', buildingId)
         .eq('college_id', college.id)
+        .eq('is_active', true)
         .maybeSingle();
       if (buildingError) {
         console.error('Report building lookup error:', buildingError);
@@ -203,7 +248,7 @@ export async function POST(request: Request) {
 
     const { data: existingReports, error: duplicateQueryError } = await supabase
       .from('reports')
-      .select('id, title, description, category, building_id, building_label, floor, room, tracking_id, college_id, submitter_id, status, upvote_count, photo_paths, created_at, updated_at')
+      .select('id, title, category, building_id, building_label, floor, room, tracking_id, status')
       .eq('college_id', college.id)
       .in('status', ['submitted', 'under_review', 'assigned', 'in_progress']);
     if (duplicateQueryError) {
@@ -229,23 +274,30 @@ export async function POST(request: Request) {
       }
     }
 
-    const { data, error } = await supabase.from('reports').insert([{
-      college_id: college.id,
-      submitter_id: user.id,
-      building_id: buildingId,
-      building_label: buildingLabel,
-      tracking_id: generateTrackingId(college.slug),
-      title: title.trim(),
-      description: description.trim(),
-      category,
-      floor: typeof body.floor === 'string' ? body.floor : null,
-      room: typeof body.room === 'string' ? body.room : null,
-      section: requestedSection,
-      situation: typeof body.situation === 'string' && ['normal', 'medium', 'high', 'critical'].includes(body.situation) ? body.situation as SituationLevel : 'normal',
-      photo_paths: photoPaths,
-      status: 'submitted',
-      upvote_count: 0,
-    }]).select('*, building:buildings(id, name, code), submitter:profiles!submitter_id(id, full_name, email)').single();
+    let data = null;
+    let error = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const result = await supabase.from('reports').insert([{
+        college_id: college.id,
+        submitter_id: user.id,
+        building_id: buildingId,
+        building_label: buildingLabel,
+        tracking_id: generateTrackingId(college.slug),
+        title: title.trim(),
+        description: description.trim(),
+        category,
+        floor: typeof body.floor === 'string' ? body.floor : null,
+        room: typeof body.room === 'string' ? body.room : null,
+        section: requestedSection,
+        situation: typeof body.situation === 'string' && ['normal', 'medium', 'high', 'critical'].includes(body.situation) ? body.situation as SituationLevel : 'normal',
+        photo_paths: photoPaths,
+        status: 'submitted',
+        upvote_count: 0,
+      }]).select('*, building:buildings(id, name, code), submitter:profiles!submitter_id(id, full_name, email)').single();
+      data = result.data;
+      error = result.error;
+      if (!error || error.code !== '23505') break;
+    }
 
     if (error || !data) {
       console.error('Report insert error:', error);

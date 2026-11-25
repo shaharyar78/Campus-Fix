@@ -1,5 +1,6 @@
 export const MAX_UPLOAD_FILES = 3;
-export const MAX_UPLOAD_FILE_BYTES = 5 * 1024 * 1024;
+// Leave multipart overhead below Vercel's default 4.5 MiB function body limit.
+export const MAX_UPLOAD_FILE_BYTES = 4 * 1024 * 1024;
 
 export const ALLOWED_IMAGE_MIME_TYPES = [
   'image/jpeg',

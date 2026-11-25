@@ -30,7 +30,7 @@ export async function GET(request: Request) {
       .from('profiles')
       .select('role, approval_status')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (!profile || profile.approval_status === 'pending') {
       return NextResponse.redirect(new URL('/account/pending', origin));

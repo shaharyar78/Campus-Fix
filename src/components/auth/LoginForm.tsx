@@ -102,7 +102,7 @@ export const LoginForm: React.FC = () => {
         .from('profiles')
         .select('role, approval_status')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       if (profileError || !profile) {
         setGeneralError('Your account profile could not be loaded. Contact your campus administrator.');
         return;

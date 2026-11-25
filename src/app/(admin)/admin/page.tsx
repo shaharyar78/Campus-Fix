@@ -12,6 +12,7 @@ import { useBuildings } from '@/hooks/useBuildings';
 import { useUser } from '@/hooks/useUser';
 import { useCollege } from '@/hooks/useCollege';
 import { ReportCategory, ReportStatus } from '@/types';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function AdminReportsPage() {
   const { profile } = useUser();
@@ -22,6 +23,7 @@ export default function AdminReportsPage() {
   const [categoryFilter, setCategoryFilter] = useState<ReportCategory | 'all'>('all');
   const [buildingFilter, setBuildingFilter] = useState<string | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 250);
   const [sortOrder, setSortOrder] = useState<'newest' | 'upvotes'>('newest');
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
   const {
@@ -34,7 +36,13 @@ export default function AdminReportsPage() {
     loadMore,
     refreshReports,
     updateReportStatus,
-  } = useReports(profile?.college_id);
+    summary,
+  } = useReports(profile?.college_id, {
+    status: statusFilter,
+    category: categoryFilter,
+    building_id: buildingFilter,
+    search: debouncedSearch,
+  });
 
   const filteredReports = reports.filter((report) => {
     if (statusFilter !== 'all' && report.status !== statusFilter) return false;
@@ -97,7 +105,7 @@ export default function AdminReportsPage() {
       </div>
 
       {/* KPI Stats Cards */}
-      <StatsCards reports={reports} />
+  <StatsCards reports={reports} summary={summary} />
 
       {/* Filters and Search Bar */}
       <div className="flex flex-col justify-between gap-3 rounded-xl border border-neutral-200 bg-white p-4 lg:flex-row lg:items-center">

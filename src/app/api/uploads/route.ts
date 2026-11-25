@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { apiError, getAuthContext, requireSameOrigin } from '@/lib/serverAuth';
 import { checkRateLimit, rateLimitErrorResponse } from '@/lib/rateLimit';
 import {
-  MAX_UPLOAD_FILES,
   MAX_UPLOAD_FILE_BYTES,
   validateAndSanitizeImage,
 } from '@/lib/imageSecurity';
@@ -54,10 +53,10 @@ export async function POST(request: Request) {
     if (files.length === 0) {
       return apiError('VALIDATION_ERROR', 'Select at least one image file to upload.', 400);
     }
-    if (files.length > MAX_UPLOAD_FILES) {
+    if (files.length > 1) {
       return apiError(
         'VALIDATION_ERROR',
-        `Maximum ${MAX_UPLOAD_FILES} image files are allowed per upload.`,
+        'Upload one image per request. You can attach up to three images to a report.',
         400
       );
     }

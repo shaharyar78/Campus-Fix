@@ -23,7 +23,7 @@ export default function SuperAdminOverviewPage() {
     addCollege,
     updateCollege,
   } = useCollege();
-  const { reports, error: reportsError, refreshReports } = useReports();
+  const { summary, error: reportsError, refreshReports, total: totalReports } = useReports();
   const [formMode, setFormMode] = useState<'add' | 'edit' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -117,9 +117,7 @@ export default function SuperAdminOverviewPage() {
     return { data: res.data };
   };
 
-  const openTicketsCount = reports.filter(
-    (r) => !['resolved', 'rejected', 'closed'].includes(r.status)
-  ).length;
+  const openTicketsCount = summary.submitted + summary.under_review + summary.assigned + summary.in_progress;
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6">
@@ -200,7 +198,7 @@ export default function SuperAdminOverviewPage() {
             <FileText className="h-4 w-4 text-blue-600" aria-hidden="true" />
           </div>
           <div className="mt-3 font-display text-2xl font-semibold tracking-tight text-neutral-950 tabular-nums sm:text-3xl">
-            {reports.length}
+            {totalReports}
           </div>
           <span className="mt-1 block text-xs text-neutral-500">Logged across campuses</span>
         </div>

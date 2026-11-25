@@ -99,7 +99,7 @@ export default function UpdatePasswordPage() {
         .from('profiles')
         .select('role, approval_status')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (profile?.approval_status === 'pending') {
         router.replace('/account/pending');

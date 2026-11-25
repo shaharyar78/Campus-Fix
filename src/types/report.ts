@@ -7,6 +7,8 @@ export type ReportStatus =
   | 'rejected'
   | 'closed';
 
+export type ReportSummary = Record<ReportStatus, number>;
+
 export type ReportCategory =
   | 'electrical'
   | 'plumbing'

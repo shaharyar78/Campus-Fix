@@ -2,10 +2,8 @@ import { NextResponse } from 'next/server';
 import { getAuthContext, apiError, requireJsonBody, requireSameOrigin } from '@/lib/serverAuth';
 import { signReportPhotoPaths } from '@/lib/reportPhotos';
 import { createClient } from '@/lib/supabase/server';
-import { ReportStatus } from '@/types';
 
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-const validStatuses: ReportStatus[] = ['submitted', 'under_review', 'assigned', 'in_progress', 'resolved', 'rejected', 'closed'];
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -45,13 +43,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { data: body, errorResponse } = await requireJsonBody(request);
     if (errorResponse || !body) return errorResponse!;
 
-    if (body.status !== undefined && (typeof body.status !== 'string' || !validStatuses.includes(body.status as ReportStatus))) {
-      return apiError('VALIDATION_ERROR', 'Invalid report status', 400);
+    if (body.status !== undefined) {
+      return apiError('VALIDATION_ERROR', 'Use the report update endpoint to change status', 400);
     }
 
     const supabase = await createClient(request);
     if (profile.role === 'admin' && !profile.college_id) return apiError('COLLEGE_REQUIRED', 'Your account is not assigned to a college', 400);
-    let query = supabase.from('reports').select('id, college_id').limit(1);
+    let query = supabase.from('reports').select('id, college_id, building_id, section').limit(1);
     if (profile.role !== 'super_admin' && profile.college_id) query = query.eq('college_id', profile.college_id);
     query = isUuid(id) ? query.eq('id', id) : query.eq('tracking_id', id);
     const { data: existing, error: findError } = await query.maybeSingle();
@@ -62,19 +60,56 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!existing) return apiError('NOT_FOUND', 'Report not found', 404);
 
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if (typeof body.status === 'string') {
-      updates.status = body.status as ReportStatus;
-      if (body.status === 'resolved') {
-        updates.resolved_at = updates.updated_at;
-      } else if (body.status !== 'closed') {
-        updates.resolved_at = null;
+    if (body.assigned_to === null) {
+      updates.assigned_to = null;
+    } else if (typeof body.assigned_to === 'string') {
+      const { data: assignee, error: assigneeError } = await supabase
+        .from('profiles')
+        .select('id, college_id, role, approval_status')
+        .eq('id', body.assigned_to)
+        .eq('college_id', existing.college_id)
+        .maybeSingle();
+      if (assigneeError) return apiError('DATABASE_ERROR', 'Could not verify the assigned administrator', 500);
+      if (!assignee || assignee.role !== 'admin' || assignee.approval_status !== 'approved') {
+        return apiError('VALIDATION_ERROR', 'Choose an approved administrator from this campus', 400);
+      }
+      updates.assigned_to = assignee.id;
+    }
+
+    if (body.building_id === null) {
+      updates.building_id = null;
+      if (body.section === undefined) updates.section = null;
+    } else if (typeof body.building_id === 'string') {
+      const buildingId = body.building_id.trim();
+      if (!buildingId) return apiError('VALIDATION_ERROR', 'Select a valid building', 400);
+      const { data: building, error: buildingError } = await supabase
+        .from('buildings')
+        .select('id, sections')
+        .eq('id', buildingId)
+        .eq('college_id', existing.college_id)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (buildingError) return apiError('DATABASE_ERROR', 'Could not verify the selected building', 500);
+      if (!building) return apiError('VALIDATION_ERROR', 'Choose an active building from this campus', 400);
+      updates.building_id = building.id;
+      const sections = Array.isArray(building.sections) ? building.sections as string[] : [];
+      const nextSection = typeof body.section === 'string' ? body.section.trim().toUpperCase() : '';
+      if (sections.length > 0 && !nextSection && building.id !== existing.building_id) {
+        return apiError('VALIDATION_ERROR', 'Select a section for this building', 400);
+      }
+      if (nextSection && !sections.some((section) => section.toUpperCase() === nextSection)) {
+        return apiError('VALIDATION_ERROR', 'Select a valid section for this building', 400);
+      }
+      if (body.section !== undefined || building.id !== existing.building_id) {
+        updates.section = nextSection || null;
       }
     }
-    if (body.assigned_to === null || typeof body.assigned_to === 'string') updates.assigned_to = body.assigned_to;
-    if (body.building_id === null || typeof body.building_id === 'string') updates.building_id = body.building_id;
     if (body.floor === null || typeof body.floor === 'string') updates.floor = body.floor;
     if (body.room === null || typeof body.room === 'string') updates.room = body.room;
-    if (body.section === null || typeof body.section === 'string') updates.section = body.section;
+    if (body.section === null) updates.section = null;
+    else if (typeof body.section === 'string' && body.building_id === undefined) {
+      return apiError('VALIDATION_ERROR', 'Choose a building before setting a section', 400);
+    }
     if (typeof body.situation === 'string' && ['normal', 'medium', 'high', 'critical'].includes(body.situation)) updates.situation = body.situation;
 
     const { data, error } = await supabase.from('reports').update(updates).eq('id', existing.id).select().single();

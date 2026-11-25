@@ -1,4 +1,4 @@
-# Contributing
+# Contributing to CampusFix
 
 Thank you for contributing to CampusFix. Keep changes focused, accessible, and consistent with the existing architecture.
 
@@ -8,22 +8,22 @@ Thank you for contributing to CampusFix. Keep changes focused, accessible, and c
 2. Install dependencies and copy `.env.example` to `.env.local`.
 3. Apply Supabase migrations and seed data in a development project.
 4. Implement the smallest complete change.
-5. Run relevant unit, integration, and end-to-end tests.
+5. Run relevant tests (when implemented).
 6. Open a pull request using the repository template.
 
 ## Code Guidelines
 
-- Use TypeScript and keep public types explicit.
-- Prefer server components unless browser state or interaction is required.
-- Keep API authorization and college isolation on the server.
+- Use **TypeScript** and keep public types explicit.
+- Prefer **Server Components** unless browser state or interaction is required.
+- Keep API authorization and college isolation on the **server**.
 - Reuse components and hooks instead of duplicating UI or data-fetching logic.
 - Handle loading, empty, error, forbidden, and not-found states.
-- Never log secrets or expose service-role credentials.
+- **Never log secrets** or expose service-role credentials.
 - Use clear names and avoid unnecessary comments.
 
 ## File and Naming Conventions
 
-- React components use PascalCase and `.tsx` files.
+- React components use **PascalCase** and `.tsx` files.
 - Hooks use `use<Name>.ts`.
 - Route Handlers live under `src/app/api/**/route.ts`.
 - Shared utilities live under `src/lib`.
@@ -36,13 +36,19 @@ Database changes require a migration in `supabase/migrations`. Update `supabase/
 
 ## Testing
 
-Add or update tests for every behavior change:
+*(Note: Tests are currently being set up for this project. When adding a behavior change, please add the corresponding tests.)*
 
-- Unit tests: `tests/unit`
-- End-to-end tests: `tests/e2e`
+- **Unit tests:** `tests/unit`
+- **End-to-end tests:** `tests/e2e`
 
 Run at least the targeted test suite and linting before requesting review.
 
 ## Pull Requests
 
-PR descriptions should explain the problem, implementation, test coverage, database changes, security impact, and screenshots for visible UI changes.
+PR descriptions should explain:
+- The problem
+- Implementation details
+- Test coverage
+- Database changes
+- Security impact
+- Screenshots for visible UI changes

@@ -51,9 +51,9 @@ Log operation metadata and request IDs, but never passwords, session tokens, ser
 
 ## Review Checklist
 
-- Verify college isolation on every route.
-- Verify RLS for every table and bucket.
-- Verify role checks before mutations.
-- Verify storage authorization.
-- Verify dependency and build security updates.
-- Add tests for unauthorized and cross-college requests.
+- [ ] Verify college isolation on every route.
+- [ ] Verify RLS for every table and bucket.
+- [ ] Verify role checks before mutations.
+- [ ] Verify storage authorization.
+- [ ] Verify dependency and build security updates.
+- [ ] Add tests for unauthorized and cross-college requests.

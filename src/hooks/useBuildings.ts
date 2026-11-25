@@ -41,13 +41,13 @@ export function useBuildings(collegeId?: string | null) {
 
   useEffect(() => { void Promise.resolve().then(fetchBuildings); }, [fetchBuildings]);
 
-  const saveBuilding = async (building: { id?: string; name: string; code?: string; floor_count: number }) => {
+  const saveBuilding = async (building: { id?: string; name: string; code?: string; floor_count: number; sections: string[] }) => {
     if (!collegeId) return { data: null, error: 'A college workspace is required.' };
     setIsLoading(true);
     try {
       const query = building.id
-        ? supabase.from('buildings').update({ name: building.name, code: building.code || null, floor_count: building.floor_count }).eq('id', building.id).eq('college_id', collegeId)
-        : supabase.from('buildings').insert([{ name: building.name, code: building.code || null, floor_count: building.floor_count, college_id: collegeId, is_active: true }]);
+        ? supabase.from('buildings').update({ name: building.name, code: building.code || null, floor_count: building.floor_count, sections: building.sections }).eq('id', building.id).eq('college_id', collegeId)
+        : supabase.from('buildings').insert([{ name: building.name, code: building.code || null, floor_count: building.floor_count, sections: building.sections, college_id: collegeId, is_active: true }]);
       const { data, error: saveError } = await query.select().single();
       if (saveError) throw saveError;
       setBuildings((current) => building.id ? current.map((item) => item.id === building.id ? data as Building : item) : [...current, data as Building]);

@@ -91,7 +91,6 @@ export const ReportForm: React.FC = () => {
     });
 
     const selectedBuilding = buildings.find((b) => b.id === formData.building_id);
-    const isKcc = currentCollege?.slug === 'kcc';
     const fieldErrors = { ...validation.errors };
 
     if (!formData.building_id) {
@@ -100,7 +99,7 @@ export const ReportForm: React.FC = () => {
     if (!formData.floor) {
       fieldErrors.floor = 'Select a floor.';
     }
-    if (isKcc && selectedBuilding && !formData.section) {
+    if ((selectedBuilding?.sections?.length || 0) > 0 && !formData.section) {
       fieldErrors.section = 'Select a section.';
     }
     if (Object.keys(fieldErrors).length > 0) {
@@ -291,7 +290,6 @@ export const ReportForm: React.FC = () => {
           floor={formData.floor}
           room={formData.room}
           section={formData.section}
-          collegeSlug={currentCollege?.slug}
           isBuildingsLoading={buildingsLoading}
           sectionError={errors.section}
           onBuildingChange={(building_id) => {

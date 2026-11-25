@@ -8,7 +8,9 @@ interface MessageBubbleProps {
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isSelf }) => {
-  const isAdmin = message.sender?.role === 'admin' || message.sender?.role === 'super_admin';
+  const senderRole = message.sender?.role;
+  const isAdmin = senderRole === 'admin' || senderRole === 'super_admin';
+  const adminLabel = senderRole === 'super_admin' ? 'Head of Authority' : 'Staff Admin';
 
   return (
     <div className={`mb-4 flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
@@ -19,7 +21,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isSelf })
         {isAdmin && (
           <>
             <span aria-hidden="true" className="text-neutral-300">·</span>
-            <span className="font-medium text-blue-600">Staff Admin</span>
+            <span className="font-medium text-blue-600">{adminLabel}</span>
           </>
         )}
         <span aria-hidden="true" className="text-neutral-300">·</span>

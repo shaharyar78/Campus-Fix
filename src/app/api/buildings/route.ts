@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthContext, apiError, requireJsonBody, requireSameOrigin } from '@/lib/serverAuth';
-import { validateBuildingInput } from '@/lib/validators';
+import { normalizeBuildingSections, validateBuildingInput } from '@/lib/validators';
 import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: Request) {
@@ -41,6 +41,10 @@ export async function POST(request: Request) {
     const code = typeof body.code === 'string' ? body.code : '';
     const floorCount = typeof body.floor_count === 'number' && Number.isInteger(body.floor_count) ? body.floor_count : 5;
     if (floorCount < 0 || floorCount > 25) return apiError('VALIDATION_ERROR', 'Floor count must be between 0 and 25', 400);
+    const normalizedSections = normalizeBuildingSections(body.sections ?? []);
+    if (normalizedSections.error || !normalizedSections.sections) {
+      return apiError('VALIDATION_ERROR', normalizedSections.error || 'Section list is invalid.', 400);
+    }
     const validation = validateBuildingInput({ name, code });
     if (!validation.isValid) return apiError('VALIDATION_ERROR', Object.values(validation.errors).join(', '), 400);
 
@@ -50,6 +54,7 @@ export async function POST(request: Request) {
       name: name.trim(),
       code: code.trim().toUpperCase() || null,
       floor_count: floorCount,
+      sections: normalizedSections.sections,
       is_active: true,
     }]).select().single();
     if (error) {

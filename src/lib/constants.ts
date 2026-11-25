@@ -85,7 +85,6 @@ export const KCC_BLOCKS = [
 export const KCC_SECTIONS = [
   ...Array.from({ length: 10 }, (_, index) => `A${index + 1}`),
   ...Array.from({ length: 10 }, (_, index) => `B${index + 1}`),
-  ...Array.from({ length: 10 }, (_, index) => `C${index + 1}`),
 ];
 
 export const SITUATION_LEVELS = ['normal', 'medium', 'high', 'critical'] as const;

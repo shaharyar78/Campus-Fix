@@ -101,10 +101,11 @@ export function normalizeFloorValue(rawFloor: string, availableFloors: string[])
   return undefined;
 }
 
-function normalizeSectionValue(rawSection: string): string | undefined {
+function normalizeSectionValue(rawSection: string, configuredSections?: string[] | null): string | undefined {
   const trimmed = rawSection.trim().toUpperCase();
   if (!trimmed) return undefined;
-  return KCC_SECTIONS.find((s) => s.toUpperCase() === trimmed);
+  const sections = configuredSections ?? KCC_SECTIONS;
+  return sections.find((section) => section.toUpperCase() === trimmed);
 }
 
 function parseUrlParams(params: URLSearchParams): RawLocationFields {
@@ -335,7 +336,9 @@ export function resolveQrLocation(
 
   const availableFloors = getFloorOptionsForBuilding(matched.matchedDirectoryBuilding);
   const floor = fields.floor ? normalizeFloorValue(fields.floor, availableFloors) : undefined;
-  const section = fields.section ? normalizeSectionValue(fields.section) : undefined;
+  const section = fields.section
+    ? normalizeSectionValue(fields.section, matched.matchedDirectoryBuilding?.sections)
+    : undefined;
   const room = fields.room?.trim() || undefined;
 
   if (!building_id && !building_label && !room && !floor) {

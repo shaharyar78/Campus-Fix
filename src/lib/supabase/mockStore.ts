@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { Building, ChatMessage, College, Report, ReportUpdate, UserProfile } from '@/types';
 import { validatePassword } from '@/lib/validators';
+import { KCC_SECTIONS } from '@/lib/constants';
 import { MOCK_SESSION_COOKIE } from './mockCookies';
 
 export { MOCK_SESSION_COOKIE };
@@ -135,6 +136,7 @@ function createInitialStore(): MockStore {
         name: 'KCC Block A',
         code: 'KCC-A',
         floor_count: 5,
+        sections: [...KCC_SECTIONS],
         is_active: true,
         created_at: earlier,
         updated_at: earlier,
@@ -145,6 +147,7 @@ function createInitialStore(): MockStore {
         name: 'KCC Block B',
         code: 'KCC-B',
         floor_count: 5,
+        sections: [...KCC_SECTIONS],
         is_active: true,
         created_at: earlier,
         updated_at: earlier,
@@ -155,6 +158,7 @@ function createInitialStore(): MockStore {
         name: 'KCC Block C',
         code: 'KCC-C',
         floor_count: 5,
+        sections: [...KCC_SECTIONS],
         is_active: true,
         created_at: earlier,
         updated_at: earlier,
@@ -165,6 +169,7 @@ function createInitialStore(): MockStore {
         name: 'GL Bajaj Block 1 (Main Engineering)',
         code: 'GLB-1',
         floor_count: 5,
+        sections: [],
         is_active: true,
         created_at: earlier,
         updated_at: earlier,
@@ -175,6 +180,7 @@ function createInitialStore(): MockStore {
         name: 'GL Bajaj Block 2 (Management & IT)',
         code: 'GLB-2',
         floor_count: 4,
+        sections: [],
         is_active: true,
         created_at: earlier,
         updated_at: earlier,
@@ -185,6 +191,7 @@ function createInitialStore(): MockStore {
         name: 'GL Bajaj Central Library & Auditorium',
         code: 'GLB-LIB',
         floor_count: 3,
+        sections: [],
         is_active: true,
         created_at: earlier,
         updated_at: earlier,
@@ -326,7 +333,7 @@ function createInitialStore(): MockStore {
         category: 'internet',
         floor: '3rd Floor',
         room: 'Seminar Hall 301',
-        section: 'C3',
+        section: 'B3',
         situation: 'normal',
         status: 'resolved',
         upvote_count: 4,

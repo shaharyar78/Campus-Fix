@@ -166,6 +166,34 @@ export async function POST(request: Request) {
       return apiError('FORBIDDEN', 'You cannot create reports for another college', 403);
     }
 
+    const requestedSection = typeof body.section === 'string' && body.section.trim()
+      ? body.section.trim().toUpperCase()
+      : null;
+    if (buildingId) {
+      const { data: building, error: buildingError } = await supabase
+        .from('buildings')
+        .select('id, college_id, sections')
+        .eq('id', buildingId)
+        .eq('college_id', college.id)
+        .maybeSingle();
+      if (buildingError) {
+        console.error('Report building lookup error:', buildingError);
+        return apiError('DATABASE_ERROR', 'Could not verify the selected building', 500);
+      }
+      if (!building) return apiError('BUILDING_NOT_FOUND', 'Select a building from this campus.', 400);
+      const configuredSections = Array.isArray(building.sections) ? building.sections as string[] : [];
+      if (configuredSections.length > 0 && !requestedSection) {
+        return apiError('VALIDATION_ERROR', 'Select a section for this building.', 400, {
+          field_errors: { section: 'Select a section.' },
+        });
+      }
+      if (requestedSection && !configuredSections.some((section) => section.toUpperCase() === requestedSection)) {
+        return apiError('VALIDATION_ERROR', 'Select a section configured for this building.', 400, {
+          field_errors: { section: 'Select a valid section.' },
+        });
+      }
+    }
+
     const photoPaths: string[] = Array.isArray(rawPhotoPaths)
       ? rawPhotoPaths.filter((p): p is string => typeof p === 'string')
       : [];
@@ -212,7 +240,7 @@ export async function POST(request: Request) {
       category,
       floor: typeof body.floor === 'string' ? body.floor : null,
       room: typeof body.room === 'string' ? body.room : null,
-      section: typeof body.section === 'string' ? body.section : null,
+      section: requestedSection,
       situation: typeof body.situation === 'string' && ['normal', 'medium', 'high', 'critical'].includes(body.situation) ? body.situation as SituationLevel : 'normal',
       photo_paths: photoPaths,
       status: 'submitted',

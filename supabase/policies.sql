@@ -246,21 +246,26 @@ with check (
 );
 
 -- Chat messages
+drop policy if exists "Allow chat read" on public.messages;
+drop policy if exists "Allow chat send" on public.messages;
 drop policy if exists "Users read college messages" on public.messages;
 create policy "Users read college messages"
 on public.messages for select
+to authenticated
 using (
-  public.is_super_admin()
+  (select public.is_super_admin())
   or (
-    college_id = public.current_profile_college()
+    college_id = (select public.current_profile_college())
     and (
-      public.is_college_admin()
-      or sender_id = auth.uid()
+      report_id is null
+      or (select public.is_college_admin())
+      or sender_id = (select auth.uid())
       or exists (
         select 1
         from public.reports r
         where r.id = messages.report_id
-          and r.submitter_id = auth.uid()
+          and r.college_id = messages.college_id
+          and r.submitter_id = (select auth.uid())
       )
     )
   )
@@ -269,20 +274,22 @@ using (
 drop policy if exists "Users create messages" on public.messages;
 create policy "Users create messages"
 on public.messages for insert
+to authenticated
 with check (
-  sender_id = auth.uid()
+  sender_id = (select auth.uid())
   and (
-    public.is_super_admin()
+    (select public.is_super_admin())
     or (
-      college_id = public.current_profile_college()
+      college_id = (select public.current_profile_college())
       and (
-        public.is_college_admin()
+        report_id is null
+        or (select public.is_college_admin())
         or exists (
           select 1
           from public.reports r
           where r.id = messages.report_id
-            and r.submitter_id = auth.uid()
-            and r.college_id = public.current_profile_college()
+            and r.submitter_id = (select auth.uid())
+            and r.college_id = messages.college_id
         )
       )
     )

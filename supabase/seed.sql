@@ -32,3 +32,14 @@ where kcc.slug = 'kcc'
 on conflict (college_id, code) do update
 set name = excluded.name,
     is_active = true;
+
+update public.buildings b
+set sections = array(
+  select format('%s%s', chr(65 + block_number), floor_number)
+  from generate_series(0, 1) as blocks(block_number)
+  cross join generate_series(1, 10) as floors(floor_number)
+  order by block_number, floor_number
+)
+from public.colleges c
+where c.id = b.college_id
+  and c.slug = 'kcc';

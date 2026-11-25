@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { Building2, ChevronDown, MessageSquare, RefreshCw, X } from 'lucide-react';
+import { Building2, ChevronDown, MessageSquare, X } from 'lucide-react';
 import { StatsCards } from '@/components/admin/StatsCards';
 import { ReportFilters } from '@/components/admin/ReportFilters';
 import { ReportsTable } from '@/components/admin/ReportsTable';
@@ -11,7 +11,6 @@ import { useReports } from '@/hooks/useReports';
 import { useBuildings } from '@/hooks/useBuildings';
 import { useUser } from '@/hooks/useUser';
 import { useCollege } from '@/hooks/useCollege';
-import { getClientAuthHeaders } from '@/lib/supabase/client';
 import { ReportCategory, ReportStatus } from '@/types';
 
 export default function AdminReportsPage() {
@@ -25,70 +24,6 @@ export default function AdminReportsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'upvotes'>('newest');
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
-  const [pendingAccounts, setPendingAccounts] = useState<
-    Array<{
-      id: string;
-      full_name: string | null;
-      email: string | null;
-      created_at: string;
-    }>
-  >([]);
-  const [approvalLoading, setApprovalLoading] = useState(false);
-  const [approvalNotice, setApprovalNotice] = useState<string | null>(null);
-
-  const fetchPendingAccounts = React.useCallback(async () => {
-    setApprovalLoading(true);
-    try {
-      const response = await fetch('/api/approvals', {
-        credentials: 'same-origin',
-        headers: getClientAuthHeaders(),
-      });
-      if (response.status === 401) {
-        setPendingAccounts([]);
-        setApprovalNotice('Sign in with an approved campus-admin account to load requests.');
-        return;
-      }
-      if (response.status === 403) {
-        setPendingAccounts([]);
-        setApprovalNotice('Only campus admins can review student requests.');
-        return;
-      }
-      if (!response.ok) throw new Error('Could not load approval requests.');
-      const json = await response.json();
-      setPendingAccounts(json.data || []);
-      setApprovalNotice(null);
-    } catch {
-      setApprovalNotice('Could not load approval requests. Try refreshing.');
-    } finally {
-      setApprovalLoading(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    void Promise.resolve().then(fetchPendingAccounts);
-  }, [fetchPendingAccounts, profile?.id]);
-
-  async function processApproval(profileId: string, action: 'approve' | 'reject') {
-    setApprovalLoading(true);
-    try {
-      const response = await fetch('/api/approvals', {
-        method: 'PATCH',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', ...getClientAuthHeaders() },
-        body: JSON.stringify({ profile_id: profileId, action }),
-      });
-      if (response.ok) {
-        await fetchPendingAccounts();
-      } else {
-        setApprovalNotice('The account request could not be updated. Refresh and try again.');
-      }
-    } catch {
-      setApprovalNotice('Unable to reach the server. Please try again.');
-    } finally {
-      setApprovalLoading(false);
-    }
-  }
-
   const {
     reports,
     isLoading,
@@ -163,88 +98,6 @@ export default function AdminReportsPage() {
 
       {/* KPI Stats Cards */}
       <StatsCards reports={reports} />
-
-      {/* Pending Student Approvals */}
-      <section className="rounded-xl border border-neutral-200 bg-white p-5">
-        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-display text-base font-semibold text-neutral-950">
-                Pending Student Approvals
-              </h2>
-              {pendingAccounts.length > 0 && (
-                <span className="font-mono text-xs font-semibold tabular-nums text-amber-700">
-                  ({pendingAccounts.length})
-                </span>
-              )}
-            </div>
-            <p className="mt-0.5 text-xs text-neutral-500">
-              Approve or reject student accounts registered to this campus.
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            isLoading={approvalLoading}
-            leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
-            onClick={() => void fetchPendingAccounts()}
-          >
-            Refresh
-          </Button>
-        </div>
-
-        {approvalNotice && (
-          <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700" role="status">
-            {approvalNotice}
-          </p>
-        )}
-
-        {!approvalNotice && !approvalLoading && pendingAccounts.length === 0 && (
-          <p className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-xs text-neutral-500">
-            No pending student requests. New registrations will appear here.
-          </p>
-        )}
-
-        {pendingAccounts.length > 0 && (
-          <div className="mt-4 divide-y divide-neutral-200 rounded-lg border border-neutral-200">
-            {pendingAccounts.map((account) => (
-              <div
-                key={account.id}
-                className="flex flex-col justify-between gap-3 px-4 py-3 sm:flex-row sm:items-center"
-              >
-                <div>
-                  <p className="text-sm font-medium text-neutral-950">
-                    {account.full_name || 'Unnamed Student'}
-                  </p>
-                  <p className="text-xs text-neutral-500">{account.email}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="primary"
-                    disabled={approvalLoading}
-                    onClick={() => void processApproval(account.id, 'approve')}
-                  >
-                    Approve
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={approvalLoading}
-                    onClick={() => void processApproval(account.id, 'reject')}
-                    className="border-rose-200 text-rose-700 hover:bg-rose-50"
-                  >
-                    Reject
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
 
       {/* Filters and Search Bar */}
       <div className="flex flex-col justify-between gap-3 rounded-xl border border-neutral-200 bg-white p-4 lg:flex-row lg:items-center">

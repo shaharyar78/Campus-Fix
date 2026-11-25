@@ -5,7 +5,7 @@ import { Building2 } from 'lucide-react';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { Building } from '@/types';
-import { FLOORS, KCC_SECTIONS } from '@/lib/constants';
+import { FLOORS } from '@/lib/constants';
 
 interface BuildingFloorSelectProps {
   buildings: Building[];
@@ -13,7 +13,6 @@ interface BuildingFloorSelectProps {
   floor: string;
   room: string;
   section: string;
-  collegeSlug?: string;
   isBuildingsLoading?: boolean;
   onBuildingChange: (id: string) => void;
   onFloorChange: (floor: string) => void;
@@ -31,7 +30,6 @@ export const BuildingFloorSelect: React.FC<BuildingFloorSelectProps> = ({
   floor,
   room,
   section,
-  collegeSlug,
   isBuildingsLoading = false,
   onBuildingChange,
   onFloorChange,
@@ -45,7 +43,7 @@ export const BuildingFloorSelect: React.FC<BuildingFloorSelectProps> = ({
   // Only buildings that exist in the database with is_active !== false
   const effectiveBuildings = buildings.filter((b) => b.is_active !== false);
   const selectedBuilding = effectiveBuildings.find((building) => building.id === buildingId);
-  const isKcc = collegeSlug === 'kcc';
+  const sectionOptions = selectedBuilding?.sections || [];
   const floorOptions = selectedBuilding
     ? [
         'Ground Floor',
@@ -107,7 +105,7 @@ export const BuildingFloorSelect: React.FC<BuildingFloorSelectProps> = ({
         </Select>
       </div>
 
-      {isKcc && selectedBuilding ? (
+      {selectedBuilding && sectionOptions.length > 0 ? (
         <Select
           label="Section"
           value={section}
@@ -115,8 +113,9 @@ export const BuildingFloorSelect: React.FC<BuildingFloorSelectProps> = ({
           error={sectionError}
           placeholder="Select section"
           required
+          disabled={disabled}
         >
-          {KCC_SECTIONS.map((item) => (
+          {sectionOptions.map((item) => (
             <option key={item} value={item}>
               {item}
             </option>

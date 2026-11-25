@@ -140,6 +140,25 @@ export function validateBuildingInput(data: {
   };
 }
 
+export function normalizeBuildingSections(value: unknown): {
+  sections: string[] | null;
+  error: string | null;
+} {
+  if (!Array.isArray(value) || value.some((section) => typeof section !== 'string')) {
+    return { sections: null, error: 'Sections must be a list of names.' };
+  }
+
+  const sections = value.map((section: string) => section.trim().toUpperCase());
+  if (sections.some((section) => !/^[A-Z0-9][A-Z0-9_-]{0,39}$/.test(section))) {
+    return { sections: null, error: 'Each section must use up to 40 letters, numbers, hyphens, or underscores.' };
+  }
+  if (new Set(sections).size !== sections.length) {
+    return { sections: null, error: 'Section names must be unique.' };
+  }
+
+  return { sections, error: null };
+}
+
 export function validateCollegeInput(data: {
   name?: string;
   slug?: string;

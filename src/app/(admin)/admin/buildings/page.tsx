@@ -38,6 +38,7 @@ export default function BuildingManagementPage() {
     name: string;
     code?: string;
     floor_count: number;
+    sections: string[];
   }) => {
     setErrorMessage(null);
     const res = await addBuilding(data);

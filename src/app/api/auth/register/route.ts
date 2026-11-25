@@ -143,6 +143,13 @@ export async function POST(request: Request) {
         }
 
         console.error('Supabase signUp error:', signUpError);
+        if (typeof errStatus === 'number' && errStatus >= 500) {
+          return NextResponse.json(
+            { error: 'Registration is temporarily unavailable. Please try again later.' },
+            { status: 503 }
+          );
+        }
+
         return NextResponse.json(
           { error: 'Could not complete registration. Please check your details and try again.' },
           { status: 400 }

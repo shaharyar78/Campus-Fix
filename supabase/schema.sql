@@ -74,6 +74,7 @@ create table if not exists public.buildings (
   name text not null,
   code text,
   floor_count integer not null default 5 check (floor_count between 0 and 25),
+  sections text[] not null default '{}'::text[],
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
